@@ -1,50 +1,51 @@
 "use client";
 
+import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
-import SegmentedTabs from "@/components/ui/SegmentedTabs";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { useState } from "react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const loginTab = useStore((s) => s.loginTab);
-  const setLoginTab = useStore((s) => s.setLoginTab);
-  const acc = useStore((s) => s.acc);
-  const setAcc = useStore((s) => s.setAcc);
-  const join2 = useStore((s) => s.join2);
-  const setJoin2 = useStore((s) => s.setJoin2);
   const code = useStore((s) => s.code);
   const setCode = useStore((s) => s.setCode);
-  const loginTouched = useStore((s) => s.loginTouched);
-  const setLoginTouched = useStore((s) => s.setLoginTouched);
+  const setGuest = useStore((s) => s.setGuest);
+  const setFirstJoin = useStore((s) => s.setFirstJoin);
   const role = useStore((s) => s.role);
   const setRole = useStore((s) => s.setRole);
   const persona = useStore((s) => s.persona);
   const setPersona = useStore((s) => s.setPersona);
-  const setGuest = useStore((s) => s.setGuest);
-  const setFirstJoin = useStore((s) => s.setFirstJoin);
   const setBlank = useStore((s) => s.setBlank);
-  const joinTouched = useStore((s) => s.joinTouched);
-  const setJoinTouched = useStore((s) => s.setJoinTouched);
 
-  const onAcc = loginTab === "acc";
-  const accMailErr = loginTouched && !acc.mail.trim();
-  const accPassErr = loginTouched && !acc.pass.trim();
-  const joinMailErr = joinTouched && !join2.mail.trim();
-  const joinPhoneErr = joinTouched && !join2.phone.trim();
-  const joinCodeErr = joinTouched && !code.trim();
+  const [showInvite, setShowInvite] = useState(false);
+  const [codeTouched, setCodeTouched] = useState(false);
+  const codeErr = codeTouched && !code.trim();
 
-  const handleLoginAsAccount = () => {
-    setLoginTouched(true);
-    if (!acc.mail.trim() || !acc.pass.trim()) return;
-    setGuest(false);
-    router.push("/");
+  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
+    const googleToken = credentialResponse.credential;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: googleToken }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem('accessToken', data.token.accessToken);
+        router.push('/dashboard');
+      } else {
+        alert(`登入失敗: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('API 呼叫失敗', error);
+    }
   };
 
   const handleJoinByCode = () => {
-    setJoinTouched(true);
-    if (!join2.mail.trim() || !join2.phone.trim() || !code.trim()) return;
+    setCodeTouched(true);
+    if (!code.trim()) return;
     setGuest(true);
     setFirstJoin(true);
     router.push("/events/invite");
@@ -56,28 +57,8 @@ export default function LoginPage() {
     setGuest(false);
     setBlank(false);
     setFirstJoin(false);
-    setLoginTouched(false);
-    setJoinTouched(false);
+    setCodeTouched(false);
   };
-
-  const roleRows: { role: string; opts: { label: string; sel: boolean; pick: () => void }[] }[] = [
-    {
-      role: "角色",
-      opts: [
-        { label: "主辦者", sel: role === "host", pick: () => setRole("host") },
-        { label: "協辦者", sel: role === "co", pick: () => setRole("co") },
-        { label: "參與者", sel: role === "member", pick: () => setRole("member") },
-      ],
-    },
-    {
-      role: "視角",
-      opts: [
-        { label: "主辦者", sel: persona === "host", pick: () => setPersona("host") },
-        { label: "協辦者", sel: persona === "co", pick: () => setPersona("co") },
-        { label: "參與者", sel: persona === "member", pick: () => setPersona("member") },
-      ],
-    },
-  ];
 
   return (
     <div
@@ -96,118 +77,68 @@ export default function LoginPage() {
       <div style={{ marginTop: 16, fontSize: 32, fontWeight: 700, letterSpacing: ".04em", color: "var(--text)" }}>
         分帳吧
       </div>
-
-      <div style={{ marginTop: 28, width: "100%" }}>
-        <SegmentedTabs
-          tabs={[
-            { label: "帳號登入", active: onAcc, onClick: () => { setLoginTab("acc"); setLoginTouched(false); } },
-            { label: "邀請碼加入", active: !onAcc, onClick: () => { setLoginTab("code"); setJoinTouched(false); } },
-          ]}
-        />
+      <div style={{ marginTop: 8, fontSize: 14, color: "var(--text3)" }}>
+        輕鬆分帳，活動費用一目了然
       </div>
 
-      {onAcc ? (
-        <>
-          <div className="flex-col gap-16 mt-20" style={{ width: "100%" }}>
-            <div className="field">
-              <div className="field-label">Email</div>
-              <Input
-                value={acc.mail}
-                onChange={(e) => setAcc({ mail: e.target.value })}
-                placeholder="you@example.com"
-                error={accMailErr}
-              />
-              {accMailErr && <div className="field-err">請填寫 Email</div>}
-            </div>
-            <div className="field">
-              <div className="field-label">密碼</div>
-              <Input
-                value={acc.pass}
-                onChange={(e) => setAcc({ pass: e.target.value })}
-                placeholder="輸入密碼"
-                error={accPassErr}
-              />
-              {accPassErr && <div className="field-err">請填寫密碼</div>}
-            </div>
-          </div>
-          <Button className="mt-20" onClick={handleLoginAsAccount}>登入</Button>
-          <div className="flex-col gap-12 mt-12" style={{ width: "100%" }}>
-            <Button variant="secondary" onClick={() => router.push("/register")}>我要註冊</Button>
-          </div>
-        </>
+      <div style={{ marginTop: 36, width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => console.error('Google 登入視窗載入或操作失敗')}
+            useOneTap
+            width="100%"
+            size="large"
+            shape="rectangular"
+            text="signin_with"
+          />
+        </GoogleOAuthProvider>
+      </div>
+
+      <div
+        style={{
+          marginTop: 32, width: "100%", display: "flex", alignItems: "center", gap: 12,
+        }}
+      >
+        <div style={{ flex: 1, height: 1, background: "var(--ln-control)" }} />
+        <span style={{ fontSize: 12, color: "var(--text3)", whiteSpace: "nowrap" }}>或</span>
+        <div style={{ flex: 1, height: 1, background: "var(--ln-control)" }} />
+      </div>
+
+      {!showInvite ? (
+        <Button variant="secondary" className="mt-20" onClick={() => setShowInvite(true)}>
+          使用邀請碼加入活動
+        </Button>
       ) : (
-        <>
-          <div className="flex-col gap-16 mt-20" style={{ width: "100%" }}>
-            <div className="field">
-              <div className="field-label">Email</div>
-              <Input
-                value={join2.mail}
-                onChange={(e) => setJoin2({ mail: e.target.value })}
-                placeholder="you@example.com"
-                error={joinMailErr}
-              />
-              {joinMailErr && <div className="field-err">請填寫 Email</div>}
-            </div>
-            <div className="field">
-              <div className="field-label">手機</div>
-              <Input
-                value={join2.phone}
-                onChange={(e) => setJoin2({ phone: e.target.value })}
-                placeholder="09xx-xxx-xxx"
-                error={joinPhoneErr}
-                inputMode="tel"
-              />
-              {joinPhoneErr && <div className="field-err">請填寫手機號碼</div>}
-            </div>
-            <div className="field">
-              <div className="field-label">活動邀請碼</div>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="例：4KQ2-8P"
-                error={joinCodeErr}
-                style={{
-                  font: "600 20px/1.2 ui-monospace,Menlo,monospace",
-                  letterSpacing: ".12em",
-                  textAlign: "center",
-                }}
-              />
-              {joinCodeErr && <div className="field-err">請填寫活動邀請碼</div>}
-            </div>
+        <div className="flex-col gap-16 mt-20" style={{ width: "100%" }}>
+          <div className="field">
+            <div className="field-label">活動邀請碼</div>
+            <Input
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="例：4KQ2-8P"
+              error={codeErr}
+              style={{
+                font: "600 20px/1.2 ui-monospace,Menlo,monospace",
+                letterSpacing: ".12em",
+                textAlign: "center",
+              }}
+            />
+            {codeErr && <div className="field-err">請填寫活動邀請碼</div>}
           </div>
-          <Button className="mt-20" onClick={handleJoinByCode}>進入活動</Button>
-        </>
+          <Button onClick={handleJoinByCode}>進入活動</Button>
+          <button
+            className="btn-link btn-link--muted"
+            style={{ alignSelf: "center", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text3)" }}
+            onClick={() => { setShowInvite(false); setCodeTouched(false); }}
+          >
+            取消
+          </button>
+        </div>
       )}
 
-      <div className="roleswitch" style={{ marginTop: 28, width: "100%", boxSizing: "border-box" }}>
-        <div className="roleswitch-head">
-          <span className="roleswitch-title">原型檢視身份</span>
-          <button className="pill-dashed" onClick={handleReset}>重新開始</button>
-        </div>
-        <div className="roleswitch-rows" style={{ marginTop: 12 }}>
-          {roleRows.map((row) => (
-            <div className="roleswitch-row" key={row.role}>
-              <span className="roleswitch-label">{row.role}</span>
-              <span className="roleswitch-opts">
-                {row.opts.map((o) => (
-                  <button
-                    key={o.label}
-                    className={`pill-toggle${o.sel ? " is-sel" : ""}`}
-                    onClick={o.pick}
-                  >
-                    {o.label}
-                  </button>
-                ))}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="hint mt-10" style={{ width: "100%" }}>
-        免帳號加入。已被加入過的信箱／手機會直接進入活動頁；初次加入則顯示活動邀請。
-        <br />
-        已加入範例：mei@example.com 或 0912345678
+        使用 Google 帳號即可快速登入；如有活動邀請碼，可直接加入活動。
       </div>
     </div>
   );
