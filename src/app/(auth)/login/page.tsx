@@ -3,6 +3,7 @@
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
+import { googleLogin } from "@/api/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState } from "react";
@@ -11,53 +12,35 @@ export default function LoginPage() {
   const router = useRouter();
   const code = useStore((s) => s.code);
   const setCode = useStore((s) => s.setCode);
+  const join2 = useStore((s) => s.join2);
+  const setJoin2 = useStore((s) => s.setJoin2);
   const setGuest = useStore((s) => s.setGuest);
   const setFirstJoin = useStore((s) => s.setFirstJoin);
-  const role = useStore((s) => s.role);
-  const setRole = useStore((s) => s.setRole);
-  const persona = useStore((s) => s.persona);
-  const setPersona = useStore((s) => s.setPersona);
-  const setBlank = useStore((s) => s.setBlank);
 
   const [showInvite, setShowInvite] = useState(false);
-  const [codeTouched, setCodeTouched] = useState(false);
-  const codeErr = codeTouched && !code.trim();
+  const [joinTouched, setJoinTouched] = useState(false);
+  const joinMailErr = joinTouched && !join2.mail.trim();
+  const joinPhoneErr = joinTouched && !join2.phone.trim();
+  const codeErr = joinTouched && !code.trim();
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
     const googleToken = credentialResponse.credential;
+    if (!googleToken) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/auth/google`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: googleToken }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        localStorage.setItem('accessToken', data.token.accessToken);
-        router.push('/dashboard');
-      } else {
-        alert(`登入失敗: ${data.message}`);
-      }
+      const data = await googleLogin(googleToken);
+      localStorage.setItem('accessToken', data.token.accessToken);
+      router.push('/dashboard');
     } catch (error) {
-      console.error('API 呼叫失敗', error);
+      alert(error instanceof Error ? error.message : "登入失敗");
     }
   };
 
   const handleJoinByCode = () => {
-    setCodeTouched(true);
-    if (!code.trim()) return;
+    setJoinTouched(true);
+    if (!join2.mail.trim() || !join2.phone.trim() || !code.trim()) return;
     setGuest(true);
     setFirstJoin(true);
     router.push("/events/invite");
-  };
-
-  const handleReset = () => {
-    setRole("host");
-    setPersona("host");
-    setGuest(false);
-    setBlank(false);
-    setFirstJoin(false);
-    setCodeTouched(false);
   };
 
   return (
@@ -89,7 +72,7 @@ export default function LoginPage() {
             useOneTap
             width="100%"
             size="large"
-            shape="rectangular"
+            shape="square"
             text="signin_with"
           />
         </GoogleOAuthProvider>
@@ -112,6 +95,27 @@ export default function LoginPage() {
       ) : (
         <div className="flex-col gap-16 mt-20" style={{ width: "100%" }}>
           <div className="field">
+            <div className="field-label">Email</div>
+            <Input
+              value={join2.mail}
+              onChange={(e) => setJoin2({ mail: e.target.value })}
+              placeholder="you@example.com"
+              error={joinMailErr}
+            />
+            {joinMailErr && <div className="field-err">請填寫 Email</div>}
+          </div>
+          <div className="field">
+            <div className="field-label">手機</div>
+            <Input
+              value={join2.phone}
+              onChange={(e) => setJoin2({ phone: e.target.value })}
+              placeholder="09xx-xxx-xxx"
+              error={joinPhoneErr}
+              inputMode="tel"
+            />
+            {joinPhoneErr && <div className="field-err">請填寫手機號碼</div>}
+          </div>
+          <div className="field">
             <div className="field-label">活動邀請碼</div>
             <Input
               value={code}
@@ -130,7 +134,7 @@ export default function LoginPage() {
           <button
             className="btn-link btn-link--muted"
             style={{ alignSelf: "center", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text3)" }}
-            onClick={() => { setShowInvite(false); setCodeTouched(false); }}
+            onClick={() => { setShowInvite(false); setJoinTouched(false); }}
           >
             取消
           </button>

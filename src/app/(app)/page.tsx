@@ -77,13 +77,6 @@ export default function HomePage() {
             </span>
           </span>
           <span className="flex items-center gap-8">
-            <button
-              className="btn-pill"
-              style={{ border: "1px dashed var(--ln-control)", fontSize: 14, padding: "4px 10px" }}
-              onClick={() => router.push("/login")}
-            >
-              回首頁／測試用
-            </button>
             {isAccount && (
               <button
                 className="btn-pill"
