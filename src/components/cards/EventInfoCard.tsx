@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevDownIcon } from "@/components/icons";
+import Chip from "@/components/ui/Chip";
 
 interface EventInfoCardProps {
   date: string;
@@ -22,41 +22,48 @@ export default function EventInfoCard({
   statusPill,
 }: EventInfoCardProps) {
   return (
-    <div className="card card-pad">
-      <button className="card-toggle" onClick={onToggle}>
-        <span className="card-toggle-label">活動資訊</span>
-        <ChevDownIcon
-          size={18}
-          className={`card-toggle-icon${collapsed ? "" : " is-open"}`}
-        />
-      </button>
-
-      {!collapsed && (
-        <div className="card-info-body">
-          <div className="card-info-row">
-            <span className="card-info-label">日期</span>
-            <span>{date}</span>
-          </div>
-          <div className="card-info-row">
-            <span className="card-info-label">地點</span>
-            <span>{place}</span>
-          </div>
-          <div className="card-info-row">
-            <span className="card-info-label">身份</span>
-            <span>{roleLabel}</span>
-            {statusPill}
-          </div>
-          {myTags.length > 0 && (
-            <div className="card-info-row">
-              <span className="card-info-label">標籤</span>
-              <div className="card-info-tags">
-                {myTags.map((tag) => (
-                  <span key={tag} className="chip chip-cond chip-sm">{tag}</span>
-                ))}
-              </div>
-            </div>
-          )}
+    <div className="card mt-16" style={{ padding: "16px 20px" }}>
+      <div className="flex items-start gap-12">
+        <div className="grow flex items-center gap-12 wrap" style={{ alignItems: "baseline" }}>
+          <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>
+            時間地點
+          </span>
+          <span className="fs14">{date} · {place}</span>
+          {statusPill}
         </div>
+        <button
+          className="icon-btn"
+          title={collapsed ? "展開" : "收合"}
+          style={{ width: 32, height: 32, fontSize: 30, margin: "-4px -6px 0 0" }}
+          onClick={onToggle}
+        >
+          {collapsed ? "›" : "⌄"}
+        </button>
+      </div>
+      {collapsed ? (
+        <div className="flex items-center gap-6 wrap mt-12">
+          <span className="pill-neutral">{roleLabel}</span>
+          {myTags.filter((t) => t !== "無標籤").map((t) => (
+            <Chip key={t} label={t} kind="cond" hash />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center gap-12 wrap mt-12">
+            <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>身份</span>
+            <span className="pill-neutral">{roleLabel}</span>
+          </div>
+          <div className="flex items-center gap-12 wrap mt-12">
+            <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>人員條件</span>
+            <span className="flex items-center gap-6 wrap">
+              {myTags.length === 0 ? (
+                <span className="fs12 text3">無特殊條件</span>
+              ) : (
+                myTags.map((t) => <Chip key={t} label={t} kind="cond" hash />)
+              )}
+            </span>
+          </div>
+        </>
       )}
     </div>
   );

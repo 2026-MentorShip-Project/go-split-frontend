@@ -54,7 +54,7 @@ export default function InvitePage() {
       </div>
       <div className="flex-col gap-12 mt-16">
         <Button onClick={() => router.push("/events/join")}>加入活動</Button>
-        <Button variant="secondary" onClick={() => router.push("/login")}>暫不加入</Button>
+        <Button variant="secondary" onClick={() => router.push("/")}>暫不加入</Button>
       </div>
     </div>
   );

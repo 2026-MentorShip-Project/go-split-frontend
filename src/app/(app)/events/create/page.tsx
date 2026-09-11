@@ -43,7 +43,7 @@ export default function CreateEventPage() {
     <div className="page-shell">
       <div className="topbar">
         <div className="topbar-row">
-          <IconButton onClick={() => router.push("/")}>
+          <IconButton onClick={() => router.push("/dashboard")}>
             <BackIcon />
           </IconButton>
           <span className="topbar-title">新增活動</span>

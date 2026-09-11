@@ -1,10 +1,13 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
 import { useStore } from "@/store";
+import { isEventDetailPage } from "@/lib/routes";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const menuOpen = useStore((s) => s.menuOpen);
   const menuIn = useStore((s) => s.menuIn);
   const role = useStore((s) => s.role);
@@ -12,7 +15,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const openMenu = useStore((s) => s.openMenu);
   const closeMenu = useStore((s) => s.closeMenu);
 
-  const showNav = true;
+  const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
 
   const handleNavigate = (screen: string) => {
@@ -35,15 +38,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
           <div className="app-scroll">{children}</div>
         </div>
-        <Drawer
-          open={menuOpen}
-          visible={menuIn}
-          onClose={closeMenu}
-          onNavigate={handleNavigate}
-          activeScreen=""
-          isHost={isHost}
-          isSettled={settled}
-        />
+        {showNav && (
+          <Drawer
+            open={menuOpen}
+            visible={menuIn}
+            onClose={closeMenu}
+            onNavigate={handleNavigate}
+            activeScreen=""
+            isHost={isHost}
+            isSettled={settled}
+          />
+        )}
       </div>
     </div>
   );

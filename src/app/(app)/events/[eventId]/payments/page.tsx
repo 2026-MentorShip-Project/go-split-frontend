@@ -47,7 +47,7 @@ export default function PaymentsPage() {
     const updated = [...events];
     updated[eventId] = { ...updated[eventId], archived: true };
     setEvents(updated);
-    router.push("/");
+    router.push("/dashboard");
   };
 
   return (
