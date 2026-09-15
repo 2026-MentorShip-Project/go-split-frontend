@@ -74,7 +74,6 @@ export default function LoginPage() {
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => console.error('Google 登入視窗載入或操作失敗')}
-            useOneTap
             width="100%"
             size="large"
             shape="square"

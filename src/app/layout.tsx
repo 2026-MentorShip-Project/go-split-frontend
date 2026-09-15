@@ -11,6 +11,7 @@ const notoSansTC = Noto_Sans_TC({
 export const metadata: Metadata = {
   title: "分帳吧 — Go Split!",
   description: "輕鬆分帳，活動費用一目了然",
+  referrer: "strict-origin-when-cross-origin",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
