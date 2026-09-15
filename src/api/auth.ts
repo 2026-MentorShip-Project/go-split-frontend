@@ -1,24 +1,23 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-interface GoogleAuthResponse {
-  token: {
-    accessToken: string;
-  };
-  message?: string;
+export interface GoogleAuthResponse {
+  id: number;
+  email: string;
+  name: string;
 }
 
-export async function googleLogin(googleToken: string): Promise<GoogleAuthResponse> {
-  const res = await fetch(`${BASE_URL}/v1/auth/google`, {
+export async function googleLogin(idToken: string): Promise<GoogleAuthResponse> {
+  const res = await fetch(`${BASE_URL}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: googleToken }),
+    credentials: "include", // 重要：允許接收 session cookie
+    body: JSON.stringify({ id_token: idToken }),
   });
 
-  const data = await res.json();
-
   if (!res.ok) {
-    throw new Error(data.message ?? "登入失敗");
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "登入失敗");
   }
 
-  return data;
+  return res.json();
 }
