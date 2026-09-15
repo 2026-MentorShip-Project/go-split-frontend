@@ -24,13 +24,18 @@ export default function LoginPage() {
   const codeErr = joinTouched && !code.trim();
 
   const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    const googleToken = credentialResponse.credential;
-    if (!googleToken) return;
+    const idToken = credentialResponse.credential;
+    if (!idToken) {
+      console.error('No credential received from Google');
+      return;
+    }
+    
     try {
-      const data = await googleLogin(googleToken);
-      localStorage.setItem('accessToken', data.token.accessToken);
+      const user = await googleLogin(idToken);
+      localStorage.setItem('user', JSON.stringify(user));
       router.push('/dashboard');
     } catch (error) {
+      console.error('Login API error:', error);
       alert(error instanceof Error ? error.message : "登入失敗");
     }
   };

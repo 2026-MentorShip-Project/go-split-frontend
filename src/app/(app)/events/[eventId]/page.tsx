@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
+import { useShallow } from "zustand/shallow";
 import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
@@ -12,23 +14,38 @@ export default function EventPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
-  const events = useStore((s) => s.events);
-  const itemsBy = useStore((s) => s.itemsBy);
-  const members = useStore((s) => s.members);
-  const rules = useStore((s) => s.rules);
-  const role = useStore((s) => s.role);
-  const persona = useStore((s) => s.persona);
-  const evInfoCollapsed = useStore((s) => s.evInfoCollapsed);
-  const setEvInfoCollapsed = useStore((s) => s.setEvInfoCollapsed);
-  const openMenu = useStore((s) => s.openMenu);
-  const setSel = useStore((s) => s.setSel);
-  const setCur = useStore((s) => s.setCur);
+
+  const { events, itemsBy, members, role, persona } = useStore(
+    useShallow((s) => ({
+      events: s.events,
+      itemsBy: s.itemsBy,
+      members: s.members,
+      role: s.role,
+      persona: s.persona,
+    }))
+  );
+
+  const { evInfoCollapsed, setEvInfoCollapsed, openMenu, setSel, setCur } = useStore(
+    useShallow((s) => ({
+      evInfoCollapsed: s.evInfoCollapsed,
+      setEvInfoCollapsed: s.setEvInfoCollapsed,
+      openMenu: s.openMenu,
+      setSel: s.setSel,
+      setCur: s.setCur,
+    }))
+  );
 
   const ev = events[eventId];
-  if (!ev) return <div className="page-shell">活動不存在</div>;
 
-  setCur(eventId);
-  const items = itemsBy[eventId] || [];
+  useEffect(() => {
+    if (ev) {
+      setCur(eventId);
+    }
+  }, [eventId, ev, setCur]);
+
+  const items = useMemo(() => itemsBy[eventId] || [], [itemsBy, eventId]);
+
+  if (!ev) return <div className="page-shell">活動不存在</div>;
   const canAddItem = role === "host" || persona === "host" || persona === "co";
   const evName = ev.name;
   const evDate = ev.date;

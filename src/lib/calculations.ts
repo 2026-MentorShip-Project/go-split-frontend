@@ -1,166 +1,271 @@
-import type { ItemDetail, Member, Rule, ExpenseItem, ShareResult, Transfer } from './types';
+import type { ItemDetail, Member, Rule, RuleGroup, ExpenseItem, ShareResult, Transfer } from './types';
 import { num } from './formatters';
 
-export function ruleWeight(rules: Rule[], tags: string[], person: Member): number {
-  for (const r of rules) {
-    if (!r.tag || tags.indexOf(r.tag) < 0) continue;
-    for (const g of r.groups || []) {
-      const cs = g.conds || [];
-      if (!cs.length) continue;
-      if (!cs.every(c => (person.tags || []).indexOf(c) >= 0)) continue;
-      if ((g.mode || 'exclude') === 'exclude') return 0;
-      const v = Number(g.wt === '' || g.wt === undefined || g.wt === null ? 1 : g.wt);
-      return isNaN(v) ? 1 : Math.max(0, Math.min(100, v));
-    }
-    const rest = r.rest || { mode: 'weight' as const, wt: '' };
-    if ((rest.mode || 'weight') === 'exclude') return 0;
-    const rv = Number(rest.wt === '' || rest.wt === undefined || rest.wt === null ? 1 : rest.wt);
-    return isNaN(rv) ? 1 : Math.max(0, Math.min(100, rv));
+const DEFAULT_WEIGHT = 1;
+const MIN_WEIGHT = 0;
+const MAX_WEIGHT = 100;
+const BALANCE_THRESHOLD = 0.5;
+
+function parseWeight(weight: string | undefined | null): number {
+  if (weight === '' || weight === undefined || weight === null) {
+    return DEFAULT_WEIGHT;
   }
-  return 1;
+  const parsed = Number(weight);
+  if (isNaN(parsed)) return DEFAULT_WEIGHT;
+  return Math.max(MIN_WEIGHT, Math.min(MAX_WEIGHT, parsed));
 }
 
-export function detailShares(d: ItemDetail, members: Member[], rules: Rule[]): ShareResult {
-  const wOf: Record<string, number> = {};
-  members.forEach(m => {
-    wOf[m.id] = d.ids ? 1 : ruleWeight(rules, d.tags, m);
+function isValidNumericString(value: string | number | undefined): boolean {
+  if (value === undefined) return false;
+  const str = String(value).trim();
+  return str !== '' && !/[^0-9.]/.test(str);
+}
+
+function personHasAllConditions(person: Member, conditions: string[]): boolean {
+  const personTags = person.tags || [];
+  return conditions.every(condition => personTags.includes(condition));
+}
+
+function findMatchingRuleGroup(
+  rule: Rule,
+  person: Member
+): { group: RuleGroup; isRestGroup: boolean } | null {
+  const groups = rule.groups || [];
+
+  for (const group of groups) {
+    const conditions = group.conds || [];
+    if (conditions.length === 0) continue;
+    if (!personHasAllConditions(person, conditions)) continue;
+    return { group, isRestGroup: false };
+  }
+
+  return null;
+}
+
+export function ruleWeight(rules: Rule[], itemTags: string[], person: Member): number {
+  for (const rule of rules) {
+    if (!rule.tag || !itemTags.includes(rule.tag)) continue;
+
+    const matchResult = findMatchingRuleGroup(rule, person);
+
+    if (matchResult) {
+      const { group } = matchResult;
+      const mode = group.mode || 'exclude';
+      if (mode === 'exclude') return 0;
+      return parseWeight(group.wt);
+    }
+
+    const restConfig = rule.rest || { mode: 'weight' as const, wt: '' };
+    const restMode = restConfig.mode || 'weight';
+    if (restMode === 'exclude') return 0;
+    return parseWeight(restConfig.wt);
+  }
+
+  return DEFAULT_WEIGHT;
+}
+
+export function detailShares(
+  detail: ItemDetail,
+  members: Member[],
+  rules: Rule[]
+): ShareResult {
+  const weightByMemberId: Record<string, number> = {};
+
+  members.forEach(member => {
+    weightByMemberId[member.id] = detail.ids
+      ? DEFAULT_WEIGHT
+      : ruleWeight(rules, detail.tags, member);
   });
-  const inc = d.ids
-    ? members.filter(m => d.ids!.indexOf(m.id) >= 0)
-    : members.filter(m => wOf[m.id] > 0);
-  const amount = typeof d.amount === 'number' ? d.amount : num(d.amount);
-  const custom = d.custom || {};
-  const fixedIds: string[] = [];
-  let fixedSum = 0;
-  inc.forEach(m => {
-    const v = custom[m.id];
-    if (v !== undefined && String(v).trim() !== '' && !/[^0-9.]/.test(String(v))) {
-      fixedIds.push(m.id);
-      fixedSum += Number(v);
+
+  const includedMembers = detail.ids
+    ? members.filter(member => detail.ids!.includes(member.id))
+    : members.filter(member => weightByMemberId[member.id] > 0);
+
+  const totalAmount = typeof detail.amount === 'number' ? detail.amount : num(detail.amount);
+  const customAmounts = detail.custom || {};
+
+  const fixedMemberIds: string[] = [];
+  let fixedAmountSum = 0;
+
+  includedMembers.forEach(member => {
+    const customValue = customAmounts[member.id];
+    if (isValidNumericString(customValue)) {
+      fixedMemberIds.push(member.id);
+      fixedAmountSum += Number(customValue);
     }
   });
-  const restIds = inc.filter(m => fixedIds.indexOf(m.id) < 0).map(m => m.id);
-  const rest = Math.max(0, amount - fixedSum);
-  const restW = restIds.reduce((a, id) => a + (wOf[id] || 0), 0);
-  const map: Record<string, number> = {};
-  inc.forEach(m => {
-    map[m.id] =
-      fixedIds.indexOf(m.id) >= 0
-        ? Number(custom[m.id])
-        : restW
-          ? (rest * (wOf[m.id] || 0)) / restW
-          : 0;
+
+  const dynamicMemberIds = includedMembers
+    .filter(member => !fixedMemberIds.includes(member.id))
+    .map(member => member.id);
+
+  const remainingAmount = Math.max(0, totalAmount - fixedAmountSum);
+  const totalDynamicWeight = dynamicMemberIds.reduce(
+    (sum, memberId) => sum + (weightByMemberId[memberId] || 0),
+    0
+  );
+
+  const shareMap: Record<string, number> = {};
+
+  includedMembers.forEach(member => {
+    if (fixedMemberIds.includes(member.id)) {
+      shareMap[member.id] = Number(customAmounts[member.id]);
+    } else if (totalDynamicWeight > 0) {
+      const memberWeight = weightByMemberId[member.id] || 0;
+      shareMap[member.id] = (remainingAmount * memberWeight) / totalDynamicWeight;
+    } else {
+      shareMap[member.id] = 0;
+    }
   });
-  const unit = restW ? rest / restW : 0;
-  let mismatch = false;
-  if (inc.length) {
-    let acc = 0;
-    fixedIds.forEach(id => {
-      const v = Math.round(map[id]);
-      map[id] = v;
-      acc += v;
+
+  const unitShare = totalDynamicWeight > 0 ? remainingAmount / totalDynamicWeight : 0;
+
+  let hasMismatch = false;
+
+  if (includedMembers.length > 0) {
+    let runningTotal = 0;
+
+    fixedMemberIds.forEach(memberId => {
+      const rounded = Math.round(shareMap[memberId]);
+      shareMap[memberId] = rounded;
+      runningTotal += rounded;
     });
-    restIds.forEach(id => {
-      const v = Math.floor(map[id] + 1e-6);
-      map[id] = v;
-      acc += v;
+
+    dynamicMemberIds.forEach(memberId => {
+      const floored = Math.floor(shareMap[memberId] + 1e-6);
+      shareMap[memberId] = floored;
+      runningTotal += floored;
     });
-    let remainder = Math.round(amount) - acc;
-    if (restIds.length) {
-      let k = 0;
+
+    let remainder = Math.round(totalAmount) - runningTotal;
+
+    if (dynamicMemberIds.length > 0) {
+      let index = 0;
       while (remainder > 0) {
-        const id = restIds[k % restIds.length];
-        map[id] += 1;
+        const memberId = dynamicMemberIds[index % dynamicMemberIds.length];
+        shareMap[memberId] += 1;
         remainder -= 1;
-        k += 1;
+        index += 1;
       }
       while (remainder < 0) {
-        const id = restIds[k % restIds.length];
-        if (map[id] > 0) {
-          map[id] -= 1;
+        const memberId = dynamicMemberIds[index % dynamicMemberIds.length];
+        if (shareMap[memberId] > 0) {
+          shareMap[memberId] -= 1;
           remainder += 1;
         }
-        k += 1;
-        if (k > restIds.length * 4) break;
+        index += 1;
+        if (index > dynamicMemberIds.length * 4) break;
       }
     } else if (remainder !== 0) {
-      mismatch = true;
+      hasMismatch = true;
     }
   }
-  const diff = Math.round(amount) - inc.reduce((a, m) => a + (map[m.id] || 0), 0);
+
+  const actualTotal = includedMembers.reduce(
+    (sum, member) => sum + (shareMap[member.id] || 0),
+    0
+  );
+  const difference = Math.round(totalAmount) - actualTotal;
+
   return {
-    inc,
-    per: restIds.length ? rest / restIds.length : 0,
-    unit,
-    restW,
-    amount,
-    map,
-    fixedIds,
-    fixedSum,
-    mismatch,
-    diff,
-    overflow: fixedSum - amount > 0.5,
+    inc: includedMembers,
+    per: dynamicMemberIds.length > 0 ? remainingAmount / dynamicMemberIds.length : 0,
+    unit: unitShare,
+    restW: totalDynamicWeight,
+    amount: totalAmount,
+    map: shareMap,
+    fixedIds: fixedMemberIds,
+    fixedSum: fixedAmountSum,
+    mismatch: hasMismatch,
+    diff: difference,
+    overflow: fixedAmountSum - totalAmount > BALANCE_THRESHOLD,
   };
 }
 
-export function itemTotal(it: ExpenseItem): number {
-  return it.details.reduce(
-    (a, d) => a + (typeof d.amount === 'number' ? d.amount : num(d.amount)),
-    0,
-  );
+export function itemTotal(expense: ExpenseItem): number {
+  return expense.details.reduce((sum, detail) => {
+    const amount = typeof detail.amount === 'number' ? detail.amount : num(detail.amount);
+    return sum + amount;
+  }, 0);
+}
+
+interface BalanceEntry {
+  member: Member;
+  balance: number;
 }
 
 export function computeTransfers(
   members: Member[],
-  paidBy: Record<string, number>,
-  totals: Record<string, number>,
+  paidByMember: Record<string, number>,
+  owedByMember: Record<string, number>
 ): Transfer[] {
-  const net = members.map(m => ({ m, v: (paidBy[m.id] || 0) - (totals[m.id] || 0) }));
-  const debt = net
-    .filter(x => x.v < -0.5)
-    .map(x => ({ m: x.m, v: -x.v }))
-    .sort((a, b) => b.v - a.v);
-  const cred = net
-    .filter(x => x.v > 0.5)
-    .map(x => ({ m: x.m, v: x.v }))
-    .sort((a, b) => b.v - a.v);
+  const netBalances: BalanceEntry[] = members.map(member => ({
+    member,
+    balance: (paidByMember[member.id] || 0) - (owedByMember[member.id] || 0),
+  }));
+
+  const debtors = netBalances
+    .filter(entry => entry.balance < -BALANCE_THRESHOLD)
+    .map(entry => ({ member: entry.member, amount: -entry.balance }))
+    .sort((a, b) => b.amount - a.amount);
+
+  const creditors = netBalances
+    .filter(entry => entry.balance > BALANCE_THRESHOLD)
+    .map(entry => ({ member: entry.member, amount: entry.balance }))
+    .sort((a, b) => b.amount - a.amount);
+
   const transfers: Transfer[] = [];
-  let di = 0;
-  let ci = 0;
-  while (di < debt.length && ci < cred.length) {
-    const amt = Math.min(debt[di].v, cred[ci].v);
-    const key = debt[di].m.id + '>' + cred[ci].m.id;
-    transfers.push({ key, from: debt[di].m, to: cred[ci].m, amount: amt });
-    debt[di].v -= amt;
-    cred[ci].v -= amt;
-    if (debt[di].v < 0.5) di++;
-    if (cred[ci].v < 0.5) ci++;
+  let debtorIndex = 0;
+  let creditorIndex = 0;
+
+  while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+    const debtor = debtors[debtorIndex];
+    const creditor = creditors[creditorIndex];
+    const transferAmount = Math.min(debtor.amount, creditor.amount);
+
+    transfers.push({
+      key: `${debtor.member.id}>${creditor.member.id}`,
+      from: debtor.member,
+      to: creditor.member,
+      amount: transferAmount,
+    });
+
+    debtor.amount -= transferAmount;
+    creditor.amount -= transferAmount;
+
+    if (debtor.amount < BALANCE_THRESHOLD) debtorIndex++;
+    if (creditor.amount < BALANCE_THRESHOLD) creditorIndex++;
   }
+
   return transfers;
 }
 
 export function ruleTagUsed(tag: string, items: ExpenseItem[]): boolean {
   if (!tag) return false;
-  return items.some(it => it.details.some(d => (d.tags || []).indexOf(tag) >= 0));
+  return items.some(expense =>
+    expense.details.some(detail => (detail.tags || []).includes(tag))
+  );
 }
 
-export function matchCount(conds: string[], members: Member[]): number {
-  if (!conds.length) return 0;
-  return members.filter(m => conds.every(c => (m.tags || []).indexOf(c) >= 0)).length;
+export function matchCount(conditions: string[], members: Member[]): number {
+  if (conditions.length === 0) return 0;
+  return members.filter(member => personHasAllConditions(member, conditions)).length;
 }
 
-export function effLabel(g: { mode?: string; wt?: string } | null): string {
-  if (!g) return '';
-  if ((g.mode || 'exclude') === 'weight') {
-    const v = g.wt === '' || g.wt === undefined || g.wt === null ? 1 : Number(g.wt);
-    return '權重 ×' + (isNaN(v) ? 1 : v);
+export function effLabel(group: { mode?: string; wt?: string } | null): string {
+  if (!group) return '';
+  const mode = group.mode || 'exclude';
+  if (mode === 'weight') {
+    const weight = parseWeight(group.wt);
+    return `權重 ×${weight}`;
   }
   return '不計入';
 }
 
-export function restLabel(r: Rule | null): string {
-  const rest = (r && r.rest) || { mode: 'weight' as const, wt: '' };
-  if ((rest.mode || 'weight') === 'exclude') return '不計入';
-  const v = rest.wt === '' || rest.wt === undefined || rest.wt === null ? 1 : Number(rest.wt);
-  return '權重 ×' + (isNaN(v) ? 1 : v);
+export function restLabel(rule: Rule | null): string {
+  const restConfig = rule?.rest || { mode: 'weight' as const, wt: '' };
+  const mode = restConfig.mode || 'weight';
+  if (mode === 'exclude') return '不計入';
+  const weight = parseWeight(restConfig.wt);
+  return `權重 ×${weight}`;
 }

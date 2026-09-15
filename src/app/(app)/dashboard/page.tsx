@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
+import { useShallow } from "zustand/shallow";
 import Input from "@/components/ui/Input";
 import { roleName } from "@/lib/formatters";
 import { itemTotal } from "@/lib/calculations";
@@ -9,28 +11,68 @@ import { money } from "@/lib/formatters";
 
 export default function HomePage() {
   const router = useRouter();
-  const acc = useStore((s) => s.acc);
-  const guest = useStore((s) => s.guest);
-  const events = useStore((s) => s.events);
-  const setCur = useStore((s) => s.setCur);
-  const code = useStore((s) => s.code);
-  const setCode = useStore((s) => s.setCode);
-  const itemsBy = useStore((s) => s.itemsBy);
-  const setGuest = useStore((s) => s.setGuest);
+
+  const { acc, guest, events, itemsBy } = useStore(
+    useShallow((s) => ({
+      acc: s.acc,
+      guest: s.guest,
+      events: s.events,
+      itemsBy: s.itemsBy,
+    }))
+  );
+
+  const { setCur, code, setCode, setGuest } = useStore(
+    useShallow((s) => ({
+      setCur: s.setCur,
+      code: s.code,
+      setCode: s.setCode,
+      setGuest: s.setGuest,
+    }))
+  );
 
   const isAccount = !guest;
   const isGuest = guest;
   const userName = acc.name;
-  const activeEvents = events
-    .map((ev, i) => ({ ev, i }))
-    .filter(({ ev }) => !ev.archived);
-  const pastEvents = events
-    .map((ev, i) => ({ ev, i }))
-    .filter(({ ev }) => ev.archived);
+
+  const { activeEvents, pastEvents } = useMemo(() => {
+    const active: Array<{ ev: typeof events[0]; i: number }> = [];
+    const past: Array<{ ev: typeof events[0]; i: number }> = [];
+
+    events.forEach((ev, i) => {
+      if (ev.archived) {
+        past.push({ ev, i });
+      } else {
+        active.push({ ev, i });
+      }
+    });
+
+    return { activeEvents: active, pastEvents: past };
+  }, [events]);
+
+  const eventTotals = useMemo(() => {
+    const totals: Record<number, { count: number; total: number }> = {};
+    Object.entries(itemsBy).forEach(([key, items]) => {
+      const idx = Number(key);
+      const total = items.reduce((a, it) => a + itemTotal(it), 0);
+      totals[idx] = { count: items.length, total };
+    });
+    return totals;
+  }, [itemsBy]);
+
+  const getStatus = useCallback((i: number) => {
+    const data = eventTotals[i] || { count: 0, total: 0 };
+    return `${data.count} 筆款項 · ${money(data.total)}`;
+  }, [eventTotals]);
+
+  const getTotal = useCallback((i: number) => {
+    const data = eventTotals[i] || { count: 0, total: 0 };
+    return money(data.total);
+  }, [eventTotals]);
+
   const noActive = activeEvents.length === 0;
   const hasPast = pastEvents.length > 0;
 
-  const openEvent = (i: number) => {
+  const openEvent = useCallback((i: number) => {
     setCur(i);
     const ev = events[i];
     if (ev.archived) {
@@ -40,23 +82,11 @@ export default function HomePage() {
     } else {
       router.push(`/events/${i}`);
     }
-  };
+  }, [setCur, events, router]);
 
-  const getStatus = (i: number) => {
-    const items = itemsBy[i] || [];
-    const total = items.reduce((a, it) => a + itemTotal(it), 0);
-    return `${items.length} 筆款項 · ${money(total)}`;
-  };
-
-  const getTotal = (i: number) => {
-    const items = itemsBy[i] || [];
-    const total = items.reduce((a, it) => a + itemTotal(it), 0);
-    return money(total);
-  };
-
-  const handleJoinByCode = () => {
+  const handleJoinByCode = useCallback(() => {
     if (code.trim()) router.push("/events/invite");
-  };
+  }, [code, router]);
 
   return (
     <div className="page-shell">
@@ -81,7 +111,7 @@ export default function HomePage() {
               <button
                 className="btn-pill"
                 style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--ln-control)" }}
-                onClick={() => { setGuest(false); router.push("/"); }}
+                onClick={() => { setGuest(false); router.push("/login"); }}
               >
                 登出
               </button>

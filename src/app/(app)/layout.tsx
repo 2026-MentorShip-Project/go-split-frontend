@@ -1,27 +1,67 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useCallback, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
 import { useStore } from "@/store";
-import { isEventDetailPage } from "@/lib/routes";
+import { useShallow } from "zustand/shallow";
+import { isEventDetailPage, ROUTES } from "@/lib/routes";
+
+function extractEventId(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const match = pathname.match(/^\/events\/(\d+)/);
+  return match ? match[1] : null;
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const menuOpen = useStore((s) => s.menuOpen);
-  const menuIn = useStore((s) => s.menuIn);
-  const role = useStore((s) => s.role);
-  const settled = useStore((s) => s.settled);
-  const openMenu = useStore((s) => s.openMenu);
-  const closeMenu = useStore((s) => s.closeMenu);
+
+  const { menuOpen, menuIn, role, settled, closeMenu } = useStore(
+    useShallow((s) => ({
+      menuOpen: s.menuOpen,
+      menuIn: s.menuIn,
+      role: s.role,
+      settled: s.settled,
+      closeMenu: s.closeMenu,
+    }))
+  );
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
+  const eventId = useMemo(() => extractEventId(pathname), [pathname]);
 
-  const handleNavigate = (screen: string) => {
+  const activeScreen = useMemo(() => {
+    if (!pathname) return "";
+    if (pathname === "/dashboard") return "home";
+    if (pathname.includes("/group")) return "group";
+    if (pathname.includes("/rules")) return "rules";
+    if (pathname.includes("/payments")) return "payments";
+    if (pathname.match(/^\/events\/\d+$/)) return "event";
+    return "";
+  }, [pathname]);
+
+  const handleNavigate = useCallback((screen: string) => {
     closeMenu();
-    // Navigation is handled by the pages via Next.js router
-  };
+    switch (screen) {
+      case "home":
+        router.push(ROUTES.HOME);
+        break;
+      case "event":
+        if (eventId) router.push(ROUTES.EVENTS.DETAIL(eventId));
+        break;
+      case "group":
+        if (eventId) router.push(ROUTES.EVENTS.GROUP(eventId));
+        break;
+      case "rules":
+        if (eventId) router.push(ROUTES.EVENTS.RULES(eventId));
+        break;
+      case "payments":
+        if (eventId) router.push(ROUTES.EVENTS.PAYMENTS(eventId));
+        break;
+    }
+  }, [closeMenu, router, eventId]);
 
   return (
     <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
@@ -30,7 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {showNav && (
             <Sidebar
               onNavigate={handleNavigate}
-              activeScreen=""
+              activeScreen={activeScreen}
               isHost={isHost}
               isSettled={settled}
               showNav={showNav}
@@ -44,7 +84,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             visible={menuIn}
             onClose={closeMenu}
             onNavigate={handleNavigate}
-            activeScreen=""
+            activeScreen={activeScreen}
             isHost={isHost}
             isSettled={settled}
           />

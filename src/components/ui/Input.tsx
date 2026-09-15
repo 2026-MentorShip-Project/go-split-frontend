@@ -1,49 +1,36 @@
 "use client";
 
-interface InputProps {
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  placeholder?: string;
+import { type ComponentPropsWithoutRef, forwardRef } from "react";
+
+type InputMode = "none" | "text" | "decimal" | "numeric" | "tel" | "search" | "email" | "url";
+
+interface InputProps extends Omit<ComponentPropsWithoutRef<"input">, "inputMode"> {
   error?: boolean;
   small?: boolean;
-  type?: string;
-  inputMode?: string;
-  className?: string;
-  readOnly?: boolean;
-  style?: React.CSSProperties;
+  inputMode?: InputMode;
 }
 
-export default function Input({
-  value,
-  onChange,
-  placeholder,
-  error,
-  small,
-  type = "text",
-  inputMode,
-  className = "",
-  readOnly,
-  style,
-}: InputProps) {
-  const cls = [
-    "input",
-    small && "input--sm",
-    error && "input--err",
-    className,
-  ]
-    .filter(Boolean)
-    .join(" ");
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ error, small, className = "", ...props }, ref) => {
+    const cls = [
+      "input",
+      small && "input--sm",
+      error && "input--err",
+      className,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
-  return (
-    <input
-      type={type}
-      inputMode={inputMode as React.HTMLAttributes<HTMLInputElement>["inputMode"]}
-      className={cls}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      readOnly={readOnly}
-      style={style}
-    />
-  );
-}
+    return (
+      <input
+        ref={ref}
+        className={cls}
+        {...props}
+      />
+    );
+  }
+);
+
+Input.displayName = "Input";
+
+export default Input;

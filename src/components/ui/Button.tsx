@@ -1,15 +1,14 @@
 "use client";
 
-interface ButtonProps {
-  variant?: "primary" | "secondary" | "pill" | "link" | "cta";
-  className?: string;
-  children: React.ReactNode;
-  onClick?: () => void;
-  disabled?: boolean;
-  type?: "button" | "submit";
+import { type ComponentPropsWithoutRef, forwardRef } from "react";
+
+type ButtonVariant = "primary" | "secondary" | "pill" | "link" | "cta";
+
+interface ButtonProps extends ComponentPropsWithoutRef<"button"> {
+  variant?: ButtonVariant;
 }
 
-const variantClass: Record<string, string> = {
+const variantClass: Record<ButtonVariant, string> = {
   primary: "btn-primary",
   secondary: "btn-secondary",
   pill: "btn-pill",
@@ -17,22 +16,19 @@ const variantClass: Record<string, string> = {
   cta: "btn-cta-lg",
 };
 
-export default function Button({
-  variant = "primary",
-  className = "",
-  children,
-  onClick,
-  disabled,
-  type = "button",
-}: ButtonProps) {
-  return (
-    <button
-      type={type}
-      className={`btn ${variantClass[variant] ?? ""} ${className}`.trim()}
-      onClick={onClick}
-      disabled={disabled}
-    >
-      {children}
-    </button>
-  );
-}
+const Button = forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ variant = "primary", className = "", type = "button", ...props }, ref) => {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={`btn ${variantClass[variant]} ${className}`.trim()}
+        {...props}
+      />
+    );
+  }
+);
+
+Button.displayName = "Button";
+
+export default Button;

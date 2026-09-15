@@ -1,6 +1,6 @@
 export const ROUTES = {
   HOME: "/dashboard",
-  LOGIN: "/",
+  LOGIN: "/login",
   EVENTS: {
     CREATE: "/events/create",
     INVITE: "/events/invite",
