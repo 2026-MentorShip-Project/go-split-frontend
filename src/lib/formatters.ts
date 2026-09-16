@@ -33,6 +33,11 @@ export function fmtEvDT(ev: EventForm): string {
   return b ? a + '～' + b : a;
 }
 
+export function fmtIsoDatetime(s: string): string {
+  if (!s) return '';
+  return s.slice(0, 16).replace('T', ' ');
+}
+
 export function roleName(r: RoleType): string {
   return r === 'host' ? '主辦者' : r === 'co' ? '協辦者' : '參與者';
 }

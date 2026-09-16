@@ -1,22 +1,22 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import Input from "@/components/ui/Input";
-import { roleName } from "@/lib/formatters";
+import { roleName, fmtIsoDatetime } from "@/lib/formatters";
 import { itemTotal } from "@/lib/calculations";
 import { money } from "@/lib/formatters";
+import { getEvents, type EventListItem } from "@/api/event";
 
 export default function HomePage() {
   const router = useRouter();
 
-  const { acc, guest, events, itemsBy } = useStore(
+  const { acc, guest, itemsBy } = useStore(
     useShallow((s) => ({
       acc: s.acc,
       guest: s.guest,
-      events: s.events,
       itemsBy: s.itemsBy,
     }))
   );
@@ -30,24 +30,29 @@ export default function HomePage() {
     }))
   );
 
+  const [apiEvents, setApiEvents] = useState<EventListItem[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+
+  useEffect(() => {
+    getEvents()
+      .then(setApiEvents)
+      .catch(console.error)
+      .finally(() => setEventsLoading(false));
+  }, []);
+
   const isAccount = !guest;
   const isGuest = guest;
   const userName = acc.name;
 
   const { activeEvents, pastEvents } = useMemo(() => {
-    const active: Array<{ ev: typeof events[0]; i: number }> = [];
-    const past: Array<{ ev: typeof events[0]; i: number }> = [];
-
-    events.forEach((ev, i) => {
-      if (ev.archived) {
-        past.push({ ev, i });
-      } else {
-        active.push({ ev, i });
-      }
+    const active: EventListItem[] = [];
+    const past: EventListItem[] = [];
+    apiEvents.forEach((ev) => {
+      if (ev.archived) past.push(ev);
+      else active.push(ev);
     });
-
     return { activeEvents: active, pastEvents: past };
-  }, [events]);
+  }, [apiEvents]);
 
   const eventTotals = useMemo(() => {
     const totals: Record<number, { count: number; total: number }> = {};
@@ -59,30 +64,19 @@ export default function HomePage() {
     return totals;
   }, [itemsBy]);
 
-  const getStatus = useCallback((i: number) => {
-    const data = eventTotals[i] || { count: 0, total: 0 };
-    return `${data.count} 筆款項 · ${money(data.total)}`;
-  }, [eventTotals]);
-
-  const getTotal = useCallback((i: number) => {
-    const data = eventTotals[i] || { count: 0, total: 0 };
-    return money(data.total);
-  }, [eventTotals]);
-
   const noActive = activeEvents.length === 0;
   const hasPast = pastEvents.length > 0;
 
-  const openEvent = useCallback((i: number) => {
-    setCur(i);
-    const ev = events[i];
+  const openEvent = useCallback((ev: EventListItem) => {
+    setCur(ev.id);
     if (ev.archived) {
-      router.push(`/events/${i}/archived`);
+      router.push(`/events/${ev.id}/archived`);
     } else if (ev.settled) {
-      router.push(`/events/${i}/settled`);
+      router.push(`/events/${ev.id}/settled`);
     } else {
-      router.push(`/events/${i}`);
+      router.push(`/events/${ev.id}`);
     }
-  }, [setCur, events, router]);
+  }, [setCur, router]);
 
   const handleJoinByCode = useCallback(() => {
     if (code.trim()) router.push("/events/invite");
@@ -177,24 +171,25 @@ export default function HomePage() {
 
       <div className="section-title mt-24">進行中的活動</div>
       <div className="grid-cards mt-10">
-        {activeEvents.map(({ ev, i }) => (
+        {eventsLoading && <div className="empty-box">載入中…</div>}
+        {activeEvents.map((ev) => (
           <button
-            key={i}
+            key={ev.id}
             className="card card-pad"
             style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
-            onClick={() => openEvent(i)}
+            onClick={() => openEvent(ev)}
           >
             <div className="flex between items-start gap-10">
               <span className="fs16 fw500" style={{ color: "var(--text)" }}>{ev.name}</span>
-              <span className="pill-neutral">{roleName(ev.role)}</span>
+              <span className="pill-neutral">{roleName(ev.role as import("@/lib/types").RoleType)}</span>
             </div>
             <div className="mt-6 fs12 text3">
-              {ev.date} · {ev.place} · {getStatus(i)}
+              {fmtIsoDatetime(ev.starts_at)} · {ev.place} · {ev.member_count} 人參與 · {ev.settled ? '' : '已結帳，待繳款'}
             </div>
           </button>
         ))}
       </div>
-      {noActive && (
+      {!eventsLoading && noActive && (
         <div className="empty-box">目前沒有進行中的活動<br />新增活動或輸入邀請碼加入</div>
       )}
 
@@ -202,22 +197,22 @@ export default function HomePage() {
         <>
           <div className="section-title mt-24">過去活動</div>
           <div className="grid-cards mt-10">
-            {pastEvents.map(({ ev, i }) => (
+            {pastEvents.map((ev) => (
               <button
-                key={i}
+                key={ev.id}
                 className="card card-pad"
                 style={{
                   width: "100%", textAlign: "left", cursor: "pointer",
                   background: "var(--bg-neutral)", borderColor: "var(--ln-control)",
                 }}
-                onClick={() => openEvent(i)}
+                onClick={() => openEvent(ev)}
               >
                 <div className="flex between items-start gap-10">
                   <span className="fs16 fw500" style={{ color: "var(--text2)" }}>{ev.name}</span>
                   <span className="pill-archived">已封存</span>
                 </div>
                 <div className="mt-6 fs12 text3">
-                  {ev.date} · {ev.place} · {getTotal(i)}
+                  {ev.place} · {ev.member_count} 人
                 </div>
               </button>
             ))}

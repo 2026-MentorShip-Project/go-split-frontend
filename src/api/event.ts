@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { BASE_URL } from "./constant";
 
 export interface CreateEventRequest {
   name: string;
@@ -17,6 +17,19 @@ export interface CreateEventResponse {
   ends_at?: string;
   template: string;
 }
+
+export interface EventListItem {
+    id: number;
+    name: string;
+    place: string;
+    starts_at: string;
+    ends_at: string;
+    template: string;
+    role: string;
+    member_count: number;
+    settled: boolean;
+    archived: boolean;
+  }
 
 export function toRfc3339(date: string, time: string): string | undefined {
   if (!date) return undefined;
@@ -40,3 +53,17 @@ export async function createEvent(body: CreateEventRequest): Promise<CreateEvent
 
   return res.json();
 }
+
+export async function getEvents(): Promise<EventListItem[]> {
+    const res = await fetch(`${BASE_URL}/events`, {
+      credentials: "include",
+    });
+  
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? "取得活動列表失敗");
+    }
+  
+    const data = await res.json();
+    return data.events ?? [];
+  }
