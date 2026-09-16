@@ -7,6 +7,7 @@ interface IconButtonProps {
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
 const variantClass: Record<string, string> = {
@@ -26,6 +27,7 @@ export default function IconButton({
   children,
   className = "",
   style,
+  disabled,
 }: IconButtonProps) {
   return (
     <button
@@ -33,7 +35,7 @@ export default function IconButton({
       title={title}
       onClick={onClick}
       style={style}
-      disabled={variant === "sm-disabled"}
+      disabled={disabled || variant === "sm-disabled"}
     >
       {children}
     </button>
