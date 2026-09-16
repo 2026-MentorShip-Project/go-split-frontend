@@ -16,6 +16,7 @@ export default function LoginPage() {
   const setJoin2 = useStore((s) => s.setJoin2);
   const setGuest = useStore((s) => s.setGuest);
   const setFirstJoin = useStore((s) => s.setFirstJoin);
+  const setUserName = useStore((s) => s.setUserName);
 
   const [showInvite, setShowInvite] = useState(false);
   const [joinTouched, setJoinTouched] = useState(false);
@@ -33,7 +34,7 @@ export default function LoginPage() {
     
     try {
       const user = await googleLogin(idToken);
-      localStorage.setItem('user', JSON.stringify(user));
+      setUserName(user.name);
       router.push('/dashboard');
     } catch (error) {
       console.error('Login API error:', error);

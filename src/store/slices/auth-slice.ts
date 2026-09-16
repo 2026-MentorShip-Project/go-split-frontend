@@ -12,6 +12,7 @@ export interface AuthSlice {
   blank: boolean;
   join2: JoinInfo;
   code: string;
+  userName: string;
 
   setGuest: (guest: boolean) => void;
   setRole: (role: RoleType) => void;
@@ -23,6 +24,7 @@ export interface AuthSlice {
   setBlank: (v: boolean) => void;
   setJoin2: (patch: Partial<JoinInfo>) => void;
   setCode: (code: string) => void;
+  setUserName: (name: string) => void;
 }
 
 export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set) => ({
@@ -36,6 +38,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set)
   firstJoin: false,
   join2: { mail: '', phone: '' },
   code: '4KQ2-8P',
+  userName: typeof window !== 'undefined' ? (sessionStorage.getItem('userName') ?? '') : '',
 
   setGuest: (guest) => set({ guest }),
   setRole: (role) => set({ role }),
@@ -47,4 +50,8 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set)
   setBlank: (v) => set({ blank: v }),
   setJoin2: (patch) => set((s) => ({ join2: { ...s.join2, ...patch } })),
   setCode: (code) => set({ code }),
+  setUserName: (name) => {
+    if (typeof window !== 'undefined') sessionStorage.setItem('userName', name);
+    set({ userName: name });
+  },
 });

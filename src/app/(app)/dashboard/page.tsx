@@ -6,18 +6,15 @@ import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import Input from "@/components/ui/Input";
 import { roleName, fmtIsoDatetime } from "@/lib/formatters";
-import { itemTotal } from "@/lib/calculations";
-import { money } from "@/lib/formatters";
 import { getEvents, type EventListItem } from "@/api/event";
 
 export default function HomePage() {
   const router = useRouter();
 
-  const { acc, guest, itemsBy } = useStore(
+  const { guest, userName } = useStore(
     useShallow((s) => ({
-      acc: s.acc,
       guest: s.guest,
-      itemsBy: s.itemsBy,
+      userName: s.userName,
     }))
   );
 
@@ -42,7 +39,6 @@ export default function HomePage() {
 
   const isAccount = !guest;
   const isGuest = guest;
-  const userName = acc.name;
 
   const { activeEvents, pastEvents } = useMemo(() => {
     const active: EventListItem[] = [];
@@ -54,15 +50,6 @@ export default function HomePage() {
     return { activeEvents: active, pastEvents: past };
   }, [apiEvents]);
 
-  const eventTotals = useMemo(() => {
-    const totals: Record<number, { count: number; total: number }> = {};
-    Object.entries(itemsBy).forEach(([key, items]) => {
-      const idx = Number(key);
-      const total = items.reduce((a, it) => a + itemTotal(it), 0);
-      totals[idx] = { count: items.length, total };
-    });
-    return totals;
-  }, [itemsBy]);
 
   const noActive = activeEvents.length === 0;
   const hasPast = pastEvents.length > 0;
