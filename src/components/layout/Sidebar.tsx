@@ -9,7 +9,6 @@ interface SidebarProps {
 }
 
 const NAV_ITEMS = [
-  { key: "home", label: "首頁" },
   { key: "event", label: "活動款項" },
   { key: "rules", label: "分攤規則" },
 ];
@@ -35,6 +34,14 @@ export default function Sidebar({
 
       {showNav && (
         <>
+          <button
+            key={'home'}
+            className={`sidebar-item${activeScreen ==='home' ? " is-active" : ""}`}
+            onClick={() => onNavigate('home')}
+          >
+            首頁
+          </button>
+          <div className="sidebar-label">活動</div>
           <nav className="sidebar-section">
             {NAV_ITEMS.map((item) => (
               <button

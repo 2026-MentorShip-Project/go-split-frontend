@@ -1,60 +1,51 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
-import { itemTotal } from "@/lib/calculations";
-import { money } from "@/lib/formatters";
+import { money, fmtIsoDatetime } from "@/lib/formatters";
+import { getEvent, type EventDetail } from "@/api/event";
 
 export default function EventPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const { events, itemsBy, members, role, persona } = useStore(
-    useShallow((s) => ({
-      events: s.events,
-      itemsBy: s.itemsBy,
-      members: s.members,
-      role: s.role,
-      persona: s.persona,
-    }))
-  );
-
-  const { evInfoCollapsed, setEvInfoCollapsed, openMenu, setSel, setCur } = useStore(
+  const { evInfoCollapsed, setEvInfoCollapsed, openMenu } = useStore(
     useShallow((s) => ({
       evInfoCollapsed: s.evInfoCollapsed,
       setEvInfoCollapsed: s.setEvInfoCollapsed,
       openMenu: s.openMenu,
-      setSel: s.setSel,
-      setCur: s.setCur,
     }))
   );
 
-  const ev = events[eventId];
+  const [ev, setEv] = useState<EventDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (ev) {
-      setCur(eventId);
-    }
-  }, [eventId, ev, setCur]);
+    getEvent(eventId)
+      .then(setEv)
+      .catch((e) => setError(e instanceof Error ? e.message : "取得活動失敗"))
+      .finally(() => setLoading(false));
+  }, [eventId]);
 
-  const items = useMemo(() => itemsBy[eventId] || [], [itemsBy, eventId]);
+  if (loading) return <div className="page-shell">載入中…</div>;
+  if (error || !ev) return <div className="page-shell">{error ?? "活動不存在"}</div>;
 
-  if (!ev) return <div className="page-shell">活動不存在</div>;
-  const canAddItem = role === "host" || persona === "host" || persona === "co";
-  const evName = ev.name;
-  const evDate = ev.date;
-  const evPlace = ev.place;
-  const roleLabel = ev.role === "host" ? "主辦者" : ev.role === "co" ? "協辦者" : "參與者";
-  const myTags = members[0]?.tags || [];
+  const myRole = ev.my_role;
+  const canAddItem = myRole === "host" || myRole === "co";
+  const roleLabel = myRole === "host" ? "主辦者" : myRole === "co" ? "協辦者" : "參與者";
+
+  const me = ev.members.find((m) => m.you);
+  const myTags = me?.tags ?? [];
   const noMyTags = myTags.length === 0;
 
-  const totalAmount = items.reduce((a, it) => a + itemTotal(it), 0);
+  const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));
 
   return (
     <div className="page-shell">
@@ -63,7 +54,7 @@ export default function EventPage() {
           <button className="icon-btn hamburger" title="更多操作" onClick={openMenu}>
             <span /><span /><span />
           </button>
-          <span className="topbar-title">{evName}</span>
+          <span className="topbar-title">{ev.name}</span>
           {canAddItem && (
             <IconButton
               variant="primary"
@@ -84,7 +75,7 @@ export default function EventPage() {
             <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>
               時間地點
             </span>
-            <span className="fs14">{evDate} · {evPlace}</span>
+            <span className="fs14">{fmtIsoDatetime(ev.starts_at)} · {ev.place}</span>
           </div>
           <button
             className="icon-btn"
@@ -132,38 +123,32 @@ export default function EventPage() {
       <div className="mt-20 flex items-baseline between wrap gap-6">
         <span className="section-title">款項現況</span>
         <span className="flex gap-8 wrap" style={{ justifyContent: "flex-end" }}>
-          <span className="fs14">合計 {money(totalAmount)}</span>
-          <span className="fs14">｜</span>
-          <span className="fs14">應分攤 {money(totalAmount)}</span>
-          <span className="fs14">｜</span>
-          <span className="fs14">已代墊 {money(totalAmount)}</span>
+          <span className="fs14">合計 {money(ev.total_cents / 100)}</span>
         </span>
       </div>
 
       <div className="grid-cards mt-10">
-        {items.map((it, idx) => {
-          const total = itemTotal(it);
+        {ev.items.map((it) => {
+          const payer = memberById[it.payer_member_id];
+          const tags = [...new Set(it.details.map((d) => d.tag).filter(Boolean))];
           return (
             <button
               key={it.id}
               className="card card-pad"
               style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
-              onClick={() => {
-                setSel(idx);
-                router.push(`/events/${eventId}/items/${idx}`);
-              }}
+              onClick={() => router.push(`/events/${eventId}/items/${it.id}`)}
             >
               <div className="flex between items-start gap-10">
-                <span className="grow fs16 fw500">{it.by} 代墊</span>
+                <span className="grow fs16 fw500">{payer?.display ?? "—"} 代墊</span>
                 <span style={{ flex: "0 1 auto", maxWidth: "55%", textAlign: "right" }} className="fs16 fw500">
-                  {money(total)}
+                  {money(it.total_cents / 100)}
                 </span>
               </div>
               <div className="mt-6 fs12 text2">
-                {it.by} 代墊 · 明細 {it.details.length} 筆
+                {payer?.display ?? "—"} 代墊 · 明細 {it.details.length} 筆
               </div>
               <div className="mt-10 flex wrap gap-8 items-center" style={{ minHeight: 23 }}>
-                {it.details.flatMap((d) => d.tags).filter((v, i, a) => a.indexOf(v) === i).map((t) => (
+                {tags.map((t) => (
                   <Chip key={t} label={t} kind="item" />
                 ))}
               </div>
@@ -171,7 +156,7 @@ export default function EventPage() {
           );
         })}
       </div>
-      {items.length === 0 && <div className="empty-box">尚無款項</div>}
+      {ev.items.length === 0 && <div className="empty-box">尚無款項</div>}
     </div>
   );
 }
