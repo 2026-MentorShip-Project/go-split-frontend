@@ -73,7 +73,7 @@ export const INITIAL_STATE: AppState = {
   acc: { name: '小凱', mail: 'kai@example.com', pass: 'demo1234' },
   loginTab: 'acc',
   firstJoin: false,
-  join2: { mail: 'kai@example.com', phone: '0912-345-678' },
+  join2: { mail: '', phone: '' },
   code: '4KQ2-8P',
   ev: { name: '', date: '', place: '', template: '自訂', d1: '', t1: '', d2: '', t2: '' },
   events: [

@@ -34,7 +34,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set)
   loginTab: 'acc',
   loginTouched: false,
   firstJoin: false,
-  join2: { mail: 'kai@example.com', phone: '0912-345-678' },
+  join2: { mail: '', phone: '' },
   code: '4KQ2-8P',
 
   setGuest: (guest) => set({ guest }),

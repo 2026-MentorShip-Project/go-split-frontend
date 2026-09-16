@@ -3,7 +3,7 @@
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
-import { googleLogin } from "@/api/auth";
+import { googleLogin, joinByCode } from "@/api/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState } from "react";
@@ -19,6 +19,7 @@ export default function LoginPage() {
 
   const [showInvite, setShowInvite] = useState(false);
   const [joinTouched, setJoinTouched] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
   const joinMailErr = joinTouched && !join2.mail.trim();
   const joinPhoneErr = joinTouched && !join2.phone.trim();
   const codeErr = joinTouched && !code.trim();
@@ -40,12 +41,21 @@ export default function LoginPage() {
     }
   };
 
-  const handleJoinByCode = () => {
+  const handleJoinByCode = async () => {
     setJoinTouched(true);
     if (!join2.mail.trim() || !join2.phone.trim() || !code.trim()) return;
-    setGuest(true);
-    setFirstJoin(true);
-    router.push("/events/invite");
+    setJoinLoading(true);
+    try {
+      const result = await joinByCode({ code, email: join2.mail, phone: join2.phone });
+      localStorage.setItem('guest_session', JSON.stringify(result));
+      setGuest(true);
+      setFirstJoin(true);
+      router.push("/events/invite");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "加入活動失敗");
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   return (
@@ -134,7 +144,9 @@ export default function LoginPage() {
             />
             {codeErr && <div className="field-err">請填寫活動邀請碼</div>}
           </div>
-          <Button onClick={handleJoinByCode}>進入活動</Button>
+          <Button onClick={handleJoinByCode} disabled={joinLoading}>
+            {joinLoading ? "加入中…" : "進入活動"}
+          </Button>
           <button
             className="btn-link btn-link--muted"
             style={{ alignSelf: "center", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text3)" }}
