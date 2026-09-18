@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+import { BASE_URL, apiPost } from "./constant";
 
 export interface GoogleAuthResponse {
   id: number;
@@ -7,12 +7,7 @@ export interface GoogleAuthResponse {
 }
 
 export async function googleLogin(idToken: string): Promise<GoogleAuthResponse> {
-  const res = await fetch(`${BASE_URL}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ id_token: idToken }),
-  });
+  const res = await apiPost(`${BASE_URL}/auth/google`, { id_token: idToken });
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -36,12 +31,7 @@ export interface JoinByCodeResponse {
 }
 
 export async function joinByCode(req: JoinByCodeRequest): Promise<JoinByCodeResponse> {
-  const res = await fetch(`${BASE_URL}/auth/join`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(req),
-  });
+  const res = await apiPost(`${BASE_URL}/auth/join`, req);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

@@ -1,4 +1,5 @@
-import { BASE_URL } from "./constant";
+import { BASE_URL, apiFetch, apiPost, apiDelete } from "./constant";
+import { EventDetailMember } from "./mombers";
 
 export interface CreateEventRequest {
   name: string;
@@ -39,12 +40,7 @@ export function toRfc3339(date: string, time: string): string | undefined {
 }
 
 export async function createEvent(body: CreateEventRequest): Promise<CreateEventResponse> {
-  const res = await fetch(`${BASE_URL}/events`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
+  const res = await apiPost(`${BASE_URL}/events`, body);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -54,14 +50,6 @@ export async function createEvent(body: CreateEventRequest): Promise<CreateEvent
   return res.json();
 }
 
-export interface EventDetailMember {
-  id: number;
-  display: string;
-  role: string;
-  tags: string[];
-  guest: boolean;
-  you: boolean;
-}
 
 export interface EventDetailDetail {
   id: number;
@@ -101,9 +89,7 @@ export interface EventDetail {
 }
 
 export async function getEvent(id: number): Promise<EventDetail> {
-  const res = await fetch(`${BASE_URL}/events/${id}`, {
-    credentials: "include",
-  });
+  const res = await apiFetch(`${BASE_URL}/events/${id}`);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -130,12 +116,7 @@ export interface CreateItemRequest {
 }
 
 export async function createItem(eventId: number, body: CreateItemRequest): Promise<EventDetailItem> {
-  const res = await fetch(`${BASE_URL}/events/${eventId}/items`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/items`, body);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -146,15 +127,86 @@ export async function createItem(eventId: number, body: CreateItemRequest): Prom
 }
 
 export async function getEvents(): Promise<EventListItem[]> {
-    const res = await fetch(`${BASE_URL}/events`, {
-      credentials: "include",
-    });
-  
+    const res = await apiFetch(`${BASE_URL}/events`);
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error ?? "取得活動列表失敗");
     }
-  
+
     const data = await res.json();
     return data.events ?? [];
   }
+
+export interface TemplateItem {
+  label: string;
+  description: string;
+}
+
+export async function getTemplates(): Promise<TemplateItem[]> {
+  const res = await apiFetch(`${BASE_URL}/templates`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "取得模板失敗");
+  }
+  const data = await res.json();
+  return data.templates ?? [];
+}
+
+// Settings 
+export async function getItemTags(eventId: number): Promise<string[]> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/items`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "取得項目標籤失敗");
+  }
+  const data = await res.json();
+  return data.labels ?? [];
+}
+
+export async function addItemTag(eventId: number, label: string): Promise<string[]> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/tags/items`, { label });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "新增項目標籤失敗");
+  }
+  const data = await res.json();
+  return data.labels ?? [];
+}
+
+export async function deleteItemTag(eventId: number, label: string): Promise<void> {
+  const res = await apiDelete(`${BASE_URL}/events/${eventId}/tags/items/${encodeURIComponent(label)}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "刪除項目標籤失敗");
+  }
+}
+
+export async function getCondTags(eventId: number): Promise<string[]> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/conds`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "取得條件標籤失敗");
+  }
+  const data = await res.json();
+  return data.labels ?? [];
+}
+
+export async function addCondTag(eventId: number, label: string): Promise<string[]> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/tags/conds`, { label });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "新增條件標籤失敗");
+  }
+  const data = await res.json();
+  return data.labels ?? [];
+}
+
+export async function deleteCondTag(eventId: number, label: string): Promise<void> {
+  const res = await apiDelete(`${BASE_URL}/events/${eventId}/tags/conds/${encodeURIComponent(label)}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "刪除條件標籤失敗");
+  }
+}
+

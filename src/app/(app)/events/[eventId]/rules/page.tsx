@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Chip from "@/components/ui/Chip";
@@ -10,6 +11,10 @@ import {
   ChevDownIcon, ChevRightIcon,
 } from "@/components/icons";
 import { effLabel, restLabel as calcRestLabel, matchCount, ruleTagUsed } from "@/lib/calculations";
+import {
+  getItemTags, addItemTag, deleteItemTag,
+  getCondTags, addCondTag, deleteCondTag,
+} from "@/api/event";
 
 export default function RulesPage() {
   const params = useParams();
@@ -40,6 +45,95 @@ export default function RulesPage() {
 
   const canEditRules = role === "host" || role === "co";
   const items = itemsBy[eventId] || [];
+
+  useEffect(() => {
+    if (!eventId) return;
+    void Promise.all([getItemTags(eventId), getCondTags(eventId)])
+      .then(([it, ct]) => { setItemTags(it); setCondTags(ct); })
+      .catch(() => {});
+  }, [eventId]);
+
+  const handleItemTagSave = async (i: number) => {
+    if (!tagEdit) return;
+    const newVal = tagEdit.value.trim();
+    const isNew = tagEdit.isNew ?? false;
+    const oldVal = itemTags[i];
+    if (!newVal) {
+      if (isNew) setItemTags(itemTags.filter((_, j) => j !== i));
+      setTagEdit(null);
+      return;
+    }
+    const updated = [...itemTags];
+    updated[i] = newVal;
+    setItemTags(updated);
+    setTagEdit(null);
+    try {
+      let labels: string[];
+      if (isNew) {
+        labels = await addItemTag(eventId, newVal);
+      } else if (newVal !== oldVal) {
+        labels = await addItemTag(eventId, newVal);
+        await deleteItemTag(eventId, oldVal);
+        labels = labels.filter((l) => l !== oldVal);
+      } else {
+        return;
+      }
+      setItemTags(labels);
+    } catch {
+      setItemTags(await getItemTags(eventId).catch(() => itemTags));
+    }
+  };
+
+  const handleDeleteItemTag = async (label: string) => {
+    setTagMenu(null);
+    setItemTags(itemTags.filter((t) => t !== label));
+    try {
+      await deleteItemTag(eventId, label);
+    } catch {
+      setItemTags(await getItemTags(eventId).catch(() => itemTags));
+    }
+  };
+
+  const handleCondTagSave = async (i: number) => {
+    if (!tagEdit) return;
+    const newVal = tagEdit.value.trim();
+    const isNew = tagEdit.isNew ?? false;
+    const oldVal = condTags[i];
+    if (!newVal) {
+      if (isNew) setCondTags(condTags.filter((_, j) => j !== i));
+      setTagEdit(null);
+      return;
+    }
+    const updated = [...condTags];
+    updated[i] = newVal;
+    setCondTags(updated);
+    setTagEdit(null);
+    try {
+      let labels: string[];
+      if (isNew) {
+        labels = await addCondTag(eventId, newVal);
+      } else if (newVal !== oldVal) {
+        labels = await addCondTag(eventId, newVal);
+        await deleteCondTag(eventId, oldVal);
+        labels = labels.filter((l) => l !== oldVal);
+      } else {
+        return;
+      }
+      setCondTags(labels);
+    } catch {
+      setCondTags(await getCondTags(eventId).catch(() => condTags));
+    }
+  };
+
+  const handleDeleteCondTag = async (label: string) => {
+    setTagMenu(null);
+    setCondTags(condTags.filter((t) => t !== label));
+    try {
+      await deleteCondTag(eventId, label);
+    } catch {
+      setCondTags(await getCondTags(eventId).catch(() => condTags));
+    }
+  };
 
   const itemOpen = !secShut["item"];
   const condOpen = !secShut["cond"];
@@ -129,14 +223,7 @@ export default function RulesPage() {
                   style={{ width: 118, padding: "6px 12px", borderRadius: 99, fontSize: 14 }}
                   value={tagEdit.value}
                   onChange={(e) => setTagEdit({ ...tagEdit, value: e.target.value })}
-                  onBlur={() => {
-                    if (tagEdit.value.trim()) {
-                      const updated = [...itemTags];
-                      updated[i] = tagEdit.value.trim();
-                      setItemTags(updated);
-                    }
-                    setTagEdit(null);
-                  }}
+                  onBlur={() => void handleItemTagSave(i)}
                   autoFocus
                 />
               );
@@ -156,11 +243,7 @@ export default function RulesPage() {
                     ⋮
                   </button>
                   <span className="dropdown-menu" style={{ left: 0, top: "calc(100% + 6px)" }}>
-                    <button onClick={() => {
-                      const updated = itemTags.filter((_, j) => j !== i);
-                      setItemTags(updated);
-                      setTagMenu(null);
-                    }}>
+                    <button onClick={() => void handleDeleteItemTag(t)}>
                       <TrashIcon size={14} />刪除
                     </button>
                     <button onClick={() => {
@@ -237,14 +320,7 @@ export default function RulesPage() {
                   style={{ width: 118, padding: "6px 12px", borderRadius: 99, fontSize: 14 }}
                   value={tagEdit.value}
                   onChange={(e) => setTagEdit({ ...tagEdit, value: e.target.value })}
-                  onBlur={() => {
-                    if (tagEdit.value.trim()) {
-                      const updated = [...condTags];
-                      updated[i] = tagEdit.value.trim();
-                      setCondTags(updated);
-                    }
-                    setTagEdit(null);
-                  }}
+                  onBlur={() => void handleCondTagSave(i)}
                   autoFocus
                 />
               );
@@ -264,11 +340,7 @@ export default function RulesPage() {
                     ⋮
                   </button>
                   <span className="dropdown-menu" style={{ left: 0, top: "calc(100% + 6px)" }}>
-                    <button onClick={() => {
-                      const updated = condTags.filter((_, j) => j !== i);
-                      setCondTags(updated);
-                      setTagMenu(null);
-                    }}>
+                    <button onClick={() => void handleDeleteCondTag(t)}>
                       <TrashIcon size={14} />刪除
                     </button>
                     <button onClick={() => {

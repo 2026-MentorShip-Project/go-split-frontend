@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import { BackIcon, CheckIcon } from "@/components/icons";
 import DatePicker from "@/components/ui/DatePicker";
-import { TEMPLATE_OPTS } from "@/data/seed";
-import { createEvent, toRfc3339 } from "@/api/event";
+import { createEvent, toRfc3339, getTemplates, TemplateItem } from "@/api/event";
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -22,6 +21,11 @@ export default function CreateEventPage() {
   const setEvents = useStore((s) => s.setEvents);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+
+  useEffect(() => {
+    void getTemplates().then(setTemplates).catch(() => {});
+  }, []);
 
   const evNameErr = evNameTouched && !ev.name.trim();
 
@@ -52,11 +56,11 @@ export default function CreateEventPage() {
       };
       const newEvents = [...events, newEvent];
       setEvents(newEvents);
-      setCur(newEvents.length - 1);
+      setCur(created.id);
       setCode(created.invite_code);
       setEv({ name: "", date: "", place: "", template: "自訂", d1: "", t1: "", d2: "", t2: "" });
       setEvNameTouched(false);
-      router.push(`/events/${newEvents.length - 1}`);
+      router.push(`/events/${created.id}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "建立活動失敗");
     } finally {
@@ -144,7 +148,7 @@ export default function CreateEventPage() {
         <div>
           <div className="field-label" style={{ marginBottom: 9 }}>分攤方式（情境模板）</div>
           <div className="grid-cards">
-            {TEMPLATE_OPTS.map((t) => (
+            {templates.map((t) => (
               <button
                 key={t.label}
                 className="card card-pad"
@@ -158,11 +162,8 @@ export default function CreateEventPage() {
                 onClick={() => setEv({ template: t.label })}
               >
                 <span className="flex-col gap-4">
-                  <span className="flex items-center gap-6 wrap">
-                    <span className="fs14 fw500">{t.label}</span>
-                    {t.soon && <span className="pill-soon">未規劃</span>}
-                  </span>
-                  <span className="fs12 text3">{t.hint}</span>
+                  <span className="fs14 fw500">{t.label}</span>
+                  <span className="fs12 text3">{t.description}</span>
                 </span>
                 {ev.template === t.label ? (
                   <span className="dot-sel">✓</span>

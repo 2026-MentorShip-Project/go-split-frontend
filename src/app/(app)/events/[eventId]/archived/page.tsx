@@ -1,20 +1,22 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import Chip from "@/components/ui/Chip";
 import { itemTotal, detailShares, computeTransfers } from "@/lib/calculations";
-import { money } from "@/lib/formatters";
+import { money, fmtIsoDatetime } from "@/lib/formatters";
 import type { FlowRow } from "@/lib/types";
 import EventInfoCard from "@/components/cards/EventInfoCard";
+import { getEvent, type EventDetail } from "@/api/event";
+import { roleFromApi } from "@/api/mombers";
 
 export default function ArchivedPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const events = useStore((s) => s.events);
   const itemsBy = useStore((s) => s.itemsBy);
   const members = useStore((s) => s.members);
   const rules = useStore((s) => s.rules);
@@ -23,14 +25,18 @@ export default function ArchivedPage() {
   const setEvInfoCollapsed = useStore((s) => s.setEvInfoCollapsed);
   const setSel = useStore((s) => s.setSel);
 
-  const ev = events[eventId];
-  if (!ev) return <div className="page-shell">活動不存在</div>;
+  const [evData, setEvData] = useState<EventDetail | null>(null);
+  useEffect(() => {
+    void getEvent(eventId).then(setEvData).catch(() => {});
+  }, [eventId]);
+
+  if (!evData) return <div className="page-shell">載入中…</div>;
 
   const items = itemsBy[eventId] || [];
-  const evName = ev.name;
-  const evDate = ev.date;
-  const evPlace = ev.place;
-  const roleLabel = ev.role === "host" ? "主辦者" : ev.role === "co" ? "協辦者" : "參與者";
+  const evName = evData.name;
+  const evDate = fmtIsoDatetime(evData.starts_at);
+  const evPlace = evData.place;
+  const roleLabel = roleFromApi(evData.my_role);
   const myTags = members[0]?.tags || [];
 
   const totalAmount = items.reduce((a, it) => a + itemTotal(it), 0);

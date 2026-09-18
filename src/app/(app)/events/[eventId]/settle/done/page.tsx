@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
+import { getEvent, type EventDetail } from "@/api/event";
 import Button from "@/components/ui/Button";
 import { itemTotal, detailShares, computeTransfers } from "@/lib/calculations";
 import { money } from "@/lib/formatters";
@@ -12,15 +14,19 @@ export default function SettleDonePage() {
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const events = useStore((s) => s.events);
+  const [evData, setEvData] = useState<EventDetail | null>(null);
   const itemsBy = useStore((s) => s.itemsBy);
+
   const members = useStore((s) => s.members);
   const rules = useStore((s) => s.rules);
   const transferNote = useStore((s) => s.transferNote);
   const copiedReport = useStore((s) => s.copiedReport);
   const setCopiedReport = useStore((s) => s.setCopiedReport);
 
-  const ev = events[eventId];
+  useEffect(() => {
+    void getEvent(eventId).then(setEvData).catch(() => {});
+  }, [eventId]);
+
   const items = itemsBy[eventId] || [];
   const totalAmount = items.reduce((a, it) => a + itemTotal(it), 0);
 
@@ -81,7 +87,7 @@ export default function SettleDonePage() {
         </div>
         <div className="mt-16" style={{ fontSize: 24, fontWeight: 700 }}>分帳已產出</div>
         <div className="mt-6 fs14">
-          {ev?.name} · 合計 {money(totalAmount)}
+          {evData?.name} · 合計 {money(totalAmount)}
         </div>
       </div>
 

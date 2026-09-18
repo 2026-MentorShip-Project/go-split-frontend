@@ -14,7 +14,6 @@ export default function SettlePage() {
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const events = useStore((s) => s.events);
   const itemsBy = useStore((s) => s.itemsBy);
   const members = useStore((s) => s.members);
   const rules = useStore((s) => s.rules);
@@ -24,9 +23,7 @@ export default function SettlePage() {
   const setTransferNote = useStore((s) => s.setTransferNote);
   const openMenu = useStore((s) => s.openMenu);
   const setSettled = useStore((s) => s.setSettled);
-  const setEvents = useStore((s) => s.setEvents);
 
-  const ev = events[eventId];
   const items = itemsBy[eventId] || [];
   const totalAmount = items.reduce((a, it) => a + itemTotal(it), 0);
 
@@ -65,9 +62,6 @@ export default function SettlePage() {
   });
 
   const handleSettle = () => {
-    const updated = [...events];
-    updated[eventId] = { ...updated[eventId], settled: true };
-    setEvents(updated);
     setSettled(true);
     router.push(`/events/${eventId}/settle/done`);
   };

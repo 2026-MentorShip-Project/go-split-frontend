@@ -17,8 +17,6 @@ export default function PaymentsPage() {
   const openMenu = useStore((s) => s.openMenu);
   const paidBy2 = useStore((s) => s.paidBy2);
   const setPaidBy2 = useStore((s) => s.setPaidBy2);
-  const events = useStore((s) => s.events);
-  const setEvents = useStore((s) => s.setEvents);
 
   const items = itemsBy[eventId] || [];
   const totals: Record<string, number> = {};
@@ -44,9 +42,6 @@ export default function PaymentsPage() {
   };
 
   const handleArchive = () => {
-    const updated = [...events];
-    updated[eventId] = { ...updated[eventId], archived: true };
-    setEvents(updated);
     router.push("/dashboard");
   };
 

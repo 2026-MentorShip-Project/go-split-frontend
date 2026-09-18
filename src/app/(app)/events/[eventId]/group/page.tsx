@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
@@ -7,13 +8,18 @@ import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Toast from "@/components/ui/Toast";
 import { PlusIcon, CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
+import {
+  getEvent, type EventDetail,
+  getCondTags
+} from "@/api/event";
+import { fmtIsoDatetime } from "@/lib/formatters";
+import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
 
 export default function GroupPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const events = useStore((s) => s.events);
   const members = useStore((s) => s.members);
   const editMember = useStore((s) => s.editMember);
   const setEditMember = useStore((s) => s.setEditMember);
@@ -24,12 +30,13 @@ export default function GroupPage() {
   const removeMember = useStore((s) => s.removeMember);
   const memberToast = useStore((s) => s.memberToast);
   const setMemberToast = useStore((s) => s.setMemberToast);
+  const setMembers = useStore((s) => s.setMembers);
   const openMenu = useStore((s) => s.openMenu);
   const evEdit = useStore((s) => s.evEdit);
   const setEvEdit = useStore((s) => s.setEvEdit);
   const patchEvEdit = useStore((s) => s.patchEvEdit);
-  const setEvents = useStore((s) => s.setEvents);
   const condTags = useStore((s) => s.condTags);
+  const setCondTags = useStore((s) => s.setCondTags);
   const mTagPick = useStore((s) => s.mTagPick);
   const setMTagPick = useStore((s) => s.setMTagPick);
   const mTagQuery = useStore((s) => s.mTagQuery);
@@ -38,27 +45,103 @@ export default function GroupPage() {
   const copied = useStore((s) => s.copied);
   const setCopied = useStore((s) => s.setCopied);
 
-  const ev = events[eventId];
-  if (!ev) return <div className="page-shell">活動不存在</div>;
+  const [evData, setEvData] = useState<EventDetail | null>(null);
 
-  const canAddMember = role === "host" || role === "co";
+  useEffect(() => {
+    void getEvent(eventId).then(setEvData).catch(() => {});
+    void getEventMembers(eventId).then((list) => {
+      setMembers(list.map((m) => ({
+        id: String(m.id),
+        name: m.display,
+        role: roleFromApi(m.role),
+        tags: m.tags,
+        login: "", // TODO: API does not return login info
+        guest: m.guest,
+        you: m.you,
+      })));
+    }).catch(() => {});
+    void getCondTags(eventId).then(setCondTags).catch(() => {});
+  }, [eventId]);
+
+  if (!evData) return <div className="page-shell">載入中…</div>;
+
+  const canAddMember = evData.my_role === "host" || evData.my_role === "co";
   const memberAddOn = editMember === null && newMember === null;
-  const inviteCode = "4KQ2-8P";
+  const inviteCode = evData.invite_code;
   const inviteLink = `https://go-split.app/invite/${inviteCode}`;
 
   const handleAddMember = () => {
     const newM = {
-      id: Date.now().toString(),
+      id: `tmp-${Date.now()}`,
       name: "",
       role: "參與者" as const,
       tags: [],
-      login: "新增人員",
+      login: "", // TODO: API does not return login info
       guest: true,
     };
     addMember(newM);
     const idx = members.length;
     setNewMember(idx);
     setEditMember(idx);
+  };
+
+  const handleSaveMember = async (i: number) => {
+    const m = members[i];
+    const isNew = newMember === i;
+    try {
+      if (isNew) {
+        const created = await createMember(eventId, {
+          display: m.name.trim() || "新成員",
+          role: roleToApi(m.role),
+          tags: m.tags,
+        });
+        updateMember(i, {
+          id: String(created.id),
+          name: created.display,
+          role: roleFromApi(created.role),
+          tags: created.tags,
+          guest: created.guest,
+        });
+      } else {
+        const updated = await patchMember(eventId, Number(m.id), {
+          display: m.name.trim(),
+          role: roleToApi(m.role),
+          tags: m.tags,
+        });
+        updateMember(i, {
+          name: updated.display,
+          role: roleFromApi(updated.role),
+          tags: updated.tags,
+        });
+      }
+      setEditMember(null);
+      setNewMember(null);
+    } catch {
+      setMemberToast("儲存失敗，請重試");
+    }
+  };
+
+  const handleDeleteMember = async (i: number) => {
+    const m = members[i];
+    removeMember(i);
+    if (!m.id.startsWith("tmp-")) {
+      try {
+        await deleteMemberById(eventId, Number(m.id));
+      } catch {
+        const list = await getEventMembers(eventId).catch(() => null);
+        if (list) {
+          setMembers(list.map((mem) => ({
+            id: String(mem.id),
+            name: mem.display,
+            role: roleFromApi(mem.role),
+            tags: mem.tags,
+            login: "", // TODO: API does not return login info
+            guest: mem.guest,
+            you: mem.you,
+          })));
+        }
+      }
+    }
   };
 
   const handleCopyLink = () => {
@@ -69,9 +152,7 @@ export default function GroupPage() {
 
   const handleSaveEvEdit = () => {
     if (!evEdit) return;
-    const updated = [...events];
-    updated[eventId] = { ...updated[eventId], name: evEdit.name, place: evEdit.place };
-    setEvents(updated);
+    setEvData((prev) => prev ? { ...prev, name: evEdit.name, place: evEdit.place } : prev);
     setEvEdit(null);
   };
 
@@ -91,15 +172,15 @@ export default function GroupPage() {
         {!evEdit ? (
           <div className="flex items-start gap-12">
             <div className="grow">
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>{ev.name}</div>
-              <div className="mt-4 fs14 text2">{ev.date}</div>
-              <div className="fs14 text2" style={{ marginTop: 2 }}>{ev.place}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>{evData.name}</div>
+              <div className="mt-4 fs14 text2">{fmtIsoDatetime(evData.starts_at)}</div>
+              <div className="fs14 text2" style={{ marginTop: 2 }}>{evData.place}</div>
             </div>
             {canAddMember && (
               <IconButton
                 variant="sm"
                 title="編輯"
-                onClick={() => setEvEdit({ name: ev.name, place: ev.place, d1: "", t1: "", d2: "", t2: "" })}
+                onClick={() => setEvEdit({ name: evData.name, place: evData.place, d1: "", t1: "", d2: "", t2: "" })}
               >
                 <EditIcon size={16} />
               </IconButton>
@@ -218,7 +299,7 @@ export default function GroupPage() {
                           <span className="flex items-center gap-8" style={{ flex: "none" }}>
                             <span className="fs12 text2" style={{ whiteSpace: "nowrap" }}>{m.role}</span>
                             {removable && (
-                              <IconButton variant="sm" title="刪除人員" onClick={() => removeMember(i)}>
+                              <IconButton variant="sm" title="刪除人員" onClick={() => void handleDeleteMember(i)}>
                                 <TrashIcon size={14} />
                               </IconButton>
                             )}
@@ -243,7 +324,7 @@ export default function GroupPage() {
                           placeholder="姓名"
                           style={{ flex: 1, padding: "10px 12px", fontWeight: 500 }}
                         />
-                        <IconButton variant="sm-fill" title="儲存" onClick={() => { setEditMember(null); setNewMember(null); }}>
+                        <IconButton variant="sm-fill" title="儲存" onClick={() => void handleSaveMember(i)}>
                           <CheckIcon size={16} />
                         </IconButton>
                       </div>
@@ -335,6 +416,7 @@ export default function GroupPage() {
                           )}
                         </div>
                       </div>
+                      {/* TODO: note — API (PATCH /members) does not accept this field yet
                       <div>
                         <div className="field-label" style={{ fontSize: 16, marginBottom: 6 }}>備註</div>
                         <Input
@@ -344,9 +426,12 @@ export default function GroupPage() {
                           style={{ padding: "10px 12px", fontSize: 14 }}
                         />
                       </div>
+                      */}
+                      {/* TODO: login — API (GET /members) does not return this field yet
                       <div className="flex items-center gap-8 wrap">
                         <span className="fs14">{m.login}</span>
                       </div>
+                      */}
                     </div>
                   )}
                 </div>

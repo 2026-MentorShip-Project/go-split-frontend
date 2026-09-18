@@ -1,18 +1,24 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import Button from "@/components/ui/Button";
+import { getEvent, type EventDetail } from "@/api/event";
+import { fmtIsoDatetime } from "@/lib/formatters";
 
 export default function InvitePage() {
   const router = useRouter();
   const cur = useStore((s) => s.cur);
-  const events = useStore((s) => s.events);
-  const ev = events[cur];
+  const [evData, setEvData] = useState<EventDetail | null>(null);
 
-  const evName = ev?.name || "";
-  const evDate = ev?.date || "";
-  const evPlace = ev?.place || "";
+  useEffect(() => {
+    if (cur) void getEvent(cur).then(setEvData).catch(() => {});
+  }, [cur]);
+
+  const evName = evData?.name || "";
+  const evDate = evData ? fmtIsoDatetime(evData.starts_at) : "";
+  const evPlace = evData?.place || "";
 
   return (
     <div
