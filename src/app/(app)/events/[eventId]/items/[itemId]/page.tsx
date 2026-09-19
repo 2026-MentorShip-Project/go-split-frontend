@@ -1,13 +1,34 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
-import { BackIcon, CheckIcon, PlusIcon, EditIcon, TrashIcon, XIcon, StarIcon, ChevDownIcon } from "@/components/icons";
+import { BackIcon, CheckIcon, PlusIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon } from "@/components/icons";
 import { money, num } from "@/lib/formatters";
-import { itemTotal } from "@/lib/calculations";
+import { getEvent, getItem, updateItem, deleteItem, getItemTags } from "@/api/event";
+import type { EventDetailDetail } from "@/api/event";
+import type { EventDetailMember } from "@/api/mombers";
+
+interface LocalDetail {
+  name: string;
+  amount: string;
+  tags: string[];
+  note: string;
+  custom_shares: Record<string, number>;
+}
+
+function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
+  return {
+    name: d.name,
+    amount: String(d.amount_cents / 100),
+    tags: d.tag ? [d.tag] : [],
+    note: d.note || "",
+    custom_shares: d.custom_shares || {},
+  };
+}
 
 export default function ItemDetailPage() {
   const router = useRouter();
@@ -15,44 +36,95 @@ export default function ItemDetailPage() {
   const eventId = Number(params.eventId);
   const itemId = Number(params.itemId);
 
-  const itemsBy = useStore((s) => s.itemsBy);
-  const updateItemsForEvent = useStore((s) => s.updateItemsForEvent);
   const editDetail = useStore((s) => s.editDetail);
   const setEditDetail = useStore((s) => s.setEditDetail);
-  const role = useStore((s) => s.role);
-  const persona = useStore((s) => s.persona);
   const itemTags = useStore((s) => s.itemTags);
+  const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
   const setDelAsk = useStore((s) => s.setDelAsk);
 
-  const items = itemsBy[eventId] || [];
-  const item = items[itemId];
-  if (!item) return <div className="page-shell">款項不存在</div>;
+  const [details, setDetails] = useState<LocalDetail[]>([]);
+  const [members, setMembers] = useState<EventDetailMember[]>([]);
+  const [payerName, setPayerName] = useState("");
+  const [hasReceipt, setHasReceipt] = useState(false);
+  const [myRole, setMyRole] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
-  const canEditItem = role === "host" || persona === "host" || persona === "co";
-  const total = itemTotal(item);
+  useEffect(() => {
+    Promise.all([
+      getItem(eventId, itemId),
+      getEvent(eventId),
+      getItemTags(eventId),
+    ])
+      .then(([item, ev, tags]) => {
+        setDetails(item.details.map(apiDetailToLocal));
+        setHasReceipt(item.has_receipt);
+        setMembers(ev.members);
+        const payer = ev.members.find((m) => m.id === item.payer_member_id);
+        setPayerName(payer?.display ?? "—");
+        setMyRole(ev.my_role);
+        setItemTags(tags);
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : "載入失敗"))
+      .finally(() => setLoading(false));
+  }, [eventId, itemId, setItemTags]);
 
-  const updateDetail = (detailIdx: number, patch: Partial<typeof item.details[0]>) => {
-    const updated = [...items];
-    const details = [...item.details];
-    details[detailIdx] = { ...details[detailIdx], ...patch };
-    updated[itemId] = { ...item, details };
-    updateItemsForEvent(eventId, updated);
+  if (loading) return <div className="page-shell">載入中…</div>;
+  if (error) return <div className="page-shell">{error}</div>;
+
+  const canEditItem = myRole === "host" || myRole === "co";
+  const total = details.reduce((sum, d) => sum + num(d.amount), 0);
+
+  const updateDetailLocal = (detailIdx: number, patch: Partial<LocalDetail>) => {
+    setDetails((prev) => prev.map((d, i) => (i === detailIdx ? { ...d, ...patch } : d)));
+    setDirty(true);
   };
 
   const handleAddDetail = () => {
-    const updated = [...items];
-    const details = [...item.details, { name: "", amount: "" as string | number, tags: [], note: "", ids: null }];
-    updated[itemId] = { ...item, details };
-    updateItemsForEvent(eventId, updated);
-    setEditDetail(details.length - 1);
+    setDetails((prev) => [...prev, { name: "", amount: "", tags: [], note: "", custom_shares: {} }]);
+    setEditDetail(details.length);
+    setDirty(true);
   };
 
-  const handleRemoveItem = () => {
-    const updated = items.filter((_, j) => j !== itemId);
-    updateItemsForEvent(eventId, updated);
-    router.push(`/events/${eventId}`);
+  const handleRemoveDetail = (idx: number) => {
+    setDetails((prev) => prev.filter((_, j) => j !== idx));
+    if (editDetail === idx) setEditDetail(null);
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await updateItem(eventId, itemId, {
+        details: details.map((d) => ({
+          name: d.name || "（未命名）",
+          amount_cents: Math.round(num(d.amount) * 100),
+          tag: d.tags[0] ?? "",
+          note: d.note,
+          custom_shares: Object.keys(d.custom_shares).length > 0 ? d.custom_shares : undefined,
+        })),
+      });
+      setDetails(res.details.map(apiDetailToLocal));
+      setDirty(false);
+      setEditDetail(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "更新款項失敗");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    try {
+      await deleteItem(eventId, itemId);
+      router.push(`/events/${eventId}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "刪除款項失敗");
+    }
   };
 
   return (
@@ -64,14 +136,24 @@ export default function ItemDetailPage() {
           </IconButton>
           <span className="topbar-title">款項細項</span>
           {canEditItem && (
-            <IconButton
-              variant="danger"
-              title="刪除這筆款項"
-              onClick={() => setDelAsk(handleRemoveItem)}
-              style={{ marginLeft: "auto" }}
-            >
-              <TrashIcon size={18} />
-            </IconButton>
+            <>
+              <IconButton
+                variant="soft"
+                title="儲存變更"
+                onClick={handleSave}
+                disabled={saving || !dirty}
+                style={{ marginLeft: "auto" }}
+              >
+                <CheckIcon size={18} />
+              </IconButton>
+              <IconButton
+                variant="danger"
+                title="刪除這筆款項"
+                onClick={() => setDelAsk(handleDeleteItem)}
+              >
+                <TrashIcon size={18} />
+              </IconButton>
+            </>
           )}
         </div>
       </div>
@@ -86,12 +168,12 @@ export default function ItemDetailPage() {
       >
         <div>
           <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px" }}>
-            <span className="fs18 fw700">{item.by} 代墊</span>
+            <span className="fs18 fw700">{payerName} 代墊</span>
             <span className="fs18 fw700">{money(total)}</span>
           </div>
           <div className="receipt-drop" style={{ cursor: "default" }}>
             <span style={{ font: "11.5px/1.6 ui-monospace,Menlo,monospace", color: "var(--text2)" }}>
-              {item.receipt ? "已上傳收據" : "無收據"}
+              {hasReceipt ? "已上傳收據" : "無收據"}
             </span>
           </div>
         </div>
@@ -107,9 +189,8 @@ export default function ItemDetailPage() {
           </div>
 
           <div className="flex-col gap-16 mt-10">
-            {item.details.map((d, i) => {
+            {details.map((d, i) => {
               const isEditing = editDetail === i;
-              const amountVal = String(d.amount);
               return (
                 <div key={i} className="card card-pad">
                   {!isEditing ? (
@@ -119,16 +200,11 @@ export default function ItemDetailPage() {
                           {d.name}
                         </span>
                         <span className="fs16 fw500">
-                          {money(typeof d.amount === "number" ? d.amount : num(amountVal))}
+                          {money(num(d.amount))}
                         </span>
                         {canEditItem && (
                           <span className="flex items-center gap-10" style={{ flex: "none" }}>
-                            <IconButton variant="sm" title="刪除" onClick={() => {
-                              const details = item.details.filter((_, j) => j !== i);
-                              const updated = [...items];
-                              updated[itemId] = { ...item, details };
-                              updateItemsForEvent(eventId, updated);
-                            }}>
+                            <IconButton variant="sm" title="刪除" onClick={() => handleRemoveDetail(i)}>
                               <TrashIcon size={14} />
                             </IconButton>
                             <IconButton variant="sm-fill" title="編輯" onClick={() => setEditDetail(i)}>
@@ -143,24 +219,32 @@ export default function ItemDetailPage() {
                         ))}
                       </div>
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
+                      {Object.keys(d.custom_shares).length > 0 && (
+                        <div className="mt-12">
+                          <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤人員</div>
+                          {Object.entries(d.custom_shares).map(([mid, cents]) => {
+                            const member = members.find((m) => String(m.id) === mid);
+                            return (
+                              <div key={mid} className="flex between items-center" style={{ padding: "2px 0" }}>
+                                <span className="fs13">{member?.display ?? mid}</span>
+                                <span className="fs13 text2">{money(cents / 100)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </>
                   ) : (
                     <>
                       <div className="flex between items-center gap-10">
                         <Input
                           value={d.name}
-                          onChange={(e) => updateDetail(i, { name: e.target.value })}
+                          onChange={(e) => updateDetailLocal(i, { name: e.target.value })}
                           placeholder="品項名稱"
                           style={{ flex: 1, minWidth: 0, padding: 12, fontSize: 14 }}
                         />
                         <span className="flex items-center gap-8" style={{ flex: "none" }}>
-                          <IconButton variant="sm" title="刪除項目" onClick={() => {
-                            const details = item.details.filter((_, j) => j !== i);
-                            const updated = [...items];
-                            updated[itemId] = { ...item, details };
-                            updateItemsForEvent(eventId, updated);
-                            setEditDetail(null);
-                          }}>
+                          <IconButton variant="sm" title="刪除項目" onClick={() => handleRemoveDetail(i)}>
                             <TrashIcon size={14} />
                           </IconButton>
                           <IconButton variant="sm-fill" title="完成" onClick={() => setEditDetail(null)}>
@@ -170,8 +254,8 @@ export default function ItemDetailPage() {
                       </div>
                       <div className="flex-col gap-12 mt-12">
                         <Input
-                          value={amountVal}
-                          onChange={(e) => updateDetail(i, { amount: e.target.value })}
+                          value={d.amount}
+                          onChange={(e) => updateDetailLocal(i, { amount: e.target.value })}
                           placeholder="品項金額"
                           inputMode="numeric"
                           style={{ padding: 12, fontSize: 14 }}
@@ -195,7 +279,7 @@ export default function ItemDetailPage() {
                             {d.tags.length > 0 && (
                               <button
                                 style={{ flex: "none", width: 22, height: 22, border: "none", borderRadius: 99, background: "var(--bg-neutral)", color: "var(--text2)", fontSize: 12, cursor: "pointer" }}
-                                onClick={() => updateDetail(i, { tags: [] })}
+                                onClick={() => updateDetailLocal(i, { tags: [] })}
                               >
                                 ×
                               </button>
@@ -216,7 +300,7 @@ export default function ItemDetailPage() {
                                     key={t}
                                     className={`picker-row${d.tags.includes(t) ? " is-sel" : ""}`}
                                     onClick={() => {
-                                      updateDetail(i, { tags: [t] });
+                                      updateDetailLocal(i, { tags: [t] });
                                       setTagPick(null);
                                     }}
                                   >
@@ -230,7 +314,7 @@ export default function ItemDetailPage() {
                         </div>
                         <Input
                           value={d.note}
-                          onChange={(e) => updateDetail(i, { note: e.target.value })}
+                          onChange={(e) => updateDetailLocal(i, { note: e.target.value })}
                           placeholder="其他備註"
                           style={{ padding: 12, fontSize: 14 }}
                         />

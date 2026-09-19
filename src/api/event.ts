@@ -127,6 +127,44 @@ export async function createItem(eventId: number, body: CreateItemRequest): Prom
   return res.json();
 }
 
+export async function getItem(eventId: number, itemId: number): Promise<EventDetailItem> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/items/${itemId}`);
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 404) throw new Error("款項不存在");
+    throw new Error(data.error ?? "取得款項失敗");
+  }
+
+  return res.json();
+}
+
+export interface UpdateItemRequest {
+  payer_member_id?: number;
+  has_receipt?: boolean;
+  details?: CreateDetailRequest[];
+}
+
+export async function updateItem(eventId: number, itemId: number, body: UpdateItemRequest): Promise<EventDetailItem> {
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}/items/${itemId}`, body);
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "更新款項失敗");
+  }
+
+  return res.json();
+}
+
+export async function deleteItem(eventId: number, itemId: number): Promise<void> {
+  const res = await apiDelete(`${BASE_URL}/events/${eventId}/items/${itemId}`);
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "刪除款項失敗");
+  }
+}
+
 export async function getEvents(): Promise<EventListItem[]> {
     const res = await apiFetch(`${BASE_URL}/events`);
 
