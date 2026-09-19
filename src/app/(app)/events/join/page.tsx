@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
@@ -7,15 +8,20 @@ import Button from "@/components/ui/Button";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import { BackIcon } from "@/components/icons";
+import { joinByCode } from "@/api/auth";
 
 export default function JoinFormPage() {
   const router = useRouter();
   const join = useStore((s) => s.join);
   const setJoin = useStore((s) => s.setJoin);
   const condTags = useStore((s) => s.condTags);
-  const cur = useStore((s) => s.cur);
   const setCur = useStore((s) => s.setCur);
   const setFirstJoin = useStore((s) => s.setFirstJoin);
+  const code = useStore((s) => s.code);
+  const join2 = useStore((s) => s.join2);
+  const setGuest = useStore((s) => s.setGuest);
+
+  const [loading, setLoading] = useState(false);
 
   const toggleCond = (c: string) => {
     const conds = join.conds.includes(c)
@@ -24,10 +30,20 @@ export default function JoinFormPage() {
     setJoin({ conds });
   };
 
-  const handleSubmit = () => {
-    setCur(0);
-    setFirstJoin(false);
-    router.push(`/events/${cur}`);
+  const handleSubmit = async () => {
+    setLoading(true);
+    try {
+      const result = await joinByCode({ code, email: join2.mail, name: join.name, phone: join2.phone });
+      localStorage.setItem("guest_session", JSON.stringify(result));
+      setGuest(true);
+      setCur(result.event_id);
+      setFirstJoin(false);
+      router.push(`/events/${result.event_id}`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "加入活動失敗");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -80,7 +96,9 @@ export default function JoinFormPage() {
         </div>
       </div>
 
-      <Button className="mt-24" onClick={handleSubmit}>加入</Button>
+      <Button className="mt-24" onClick={handleSubmit} disabled={loading}>
+        {loading ? "加入中…" : "加入"}
+      </Button>
     </div>
   );
 }

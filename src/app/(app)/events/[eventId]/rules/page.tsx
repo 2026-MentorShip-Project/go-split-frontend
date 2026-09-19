@@ -11,9 +11,11 @@ import {
   ChevDownIcon, ChevRightIcon,
 } from "@/components/icons";
 import { effLabel, restLabel as calcRestLabel, matchCount, ruleTagUsed } from "@/lib/calculations";
+import TagPicker from "@/components/features/TagPicker";
 import {
   getItemTags, addItemTag, deleteItemTag,
   getCondTags, addCondTag, deleteCondTag,
+  getRules, createRule, updateRuleApi, deleteRuleApi,
 } from "@/api/event";
 
 export default function RulesPage() {
@@ -32,6 +34,11 @@ export default function RulesPage() {
   const itemsBy = useStore((s) => s.itemsBy);
   const ruleEdit = useStore((s) => s.ruleEdit);
   const setRuleEdit = useStore((s) => s.setRuleEdit);
+  const updateRule = useStore((s) => s.updateRule);
+  const rulePick = useStore((s) => s.rulePick);
+  const setRulePick = useStore((s) => s.setRulePick);
+  const ruleTagQuery = useStore((s) => s.ruleTagQuery);
+  const setRuleTagQuery = useStore((s) => s.setRuleTagQuery);
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -48,8 +55,8 @@ export default function RulesPage() {
 
   useEffect(() => {
     if (!eventId) return;
-    void Promise.all([getItemTags(eventId), getCondTags(eventId)])
-      .then(([it, ct]) => { setItemTags(it); setCondTags(ct); })
+    void Promise.all([getItemTags(eventId), getCondTags(eventId), getRules(eventId)])
+      .then(([it, ct, rl]) => { setItemTags(it); setCondTags(ct); setRules(rl); })
       .catch(() => {});
   }, [eventId]);
 
@@ -156,6 +163,30 @@ export default function RulesPage() {
   const handleAddCondTag = () => {
     setCondTags([...condTags, ""]);
     setTagEdit({ kind: "cond", i: condTags.length, value: "", isNew: true });
+  };
+
+  const handleSaveRule = async (i: number) => {
+    setRuleEdit(null);
+    const rule = rules[i];
+    try {
+      if (rule.id) {
+        const updated = await updateRuleApi(eventId, rule.id, {
+          groups: rule.groups,
+          rest: rule.rest ?? null,
+        });
+        setRules(rules.map((r, j) => (j === i ? updated : r)));
+      } else {
+        if (!rule.tag.trim()) return;
+        const created = await createRule(eventId, {
+          tag: rule.tag,
+          groups: rule.groups,
+          rest: rule.rest,
+        });
+        setRules(rules.map((r, j) => (j === i ? created : r)));
+      }
+    } catch {
+      setRules(await getRules(eventId).catch(() => rules));
+    }
   };
 
   return (
@@ -464,13 +495,39 @@ export default function RulesPage() {
             return (
               <div key={i} className="card" style={{ padding: "16px 20px", marginLeft: 40, marginRight: 40 }}>
                 <div className="flex items-center between gap-12">
-                  <span className="grow fs16 fw700" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {r.tag || "（未選擇標籤）"}
-                  </span>
+                  {isEditing ? (
+                    <TagPicker
+                      tags={itemTags}
+                      selectedTag={r.tag || null}
+                      open={rulePick === String(i)}
+                      query={ruleTagQuery}
+                      onOpen={() => setRulePick(String(i))}
+                      onClose={() => { setRulePick(null); setRuleTagQuery(""); }}
+                      onQueryChange={(e) => setRuleTagQuery(e.target.value)}
+                      onSelect={(tag) => {
+                        updateRule(i, { tag });
+                        setRulePick(null);
+                        setRuleTagQuery("");
+                      }}
+                      onClear={() => updateRule(i, { tag: "" })}
+                      itemTags={rules.filter((_, j) => j !== i).map((rr) => rr.tag).filter(Boolean)}
+                    />
+                  ) : (
+                    <span className="grow fs16 fw700" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.tag || "（未選擇標籤）"}
+                    </span>
+                  )}
                   {used && <span className="pill-neutral">已被使用</span>}
                   {!isEditing && !used && (
                     <span className="flex gap-8">
-                      <IconButton variant="sm" title="刪除" onClick={() => setRules(rules.filter((_, j) => j !== i))}>
+                      <IconButton variant="sm" title="刪除" onClick={async () => {
+                        const removed = rules[i];
+                        setRules(rules.filter((_, j) => j !== i));
+                        if (removed.id) {
+                          try { await deleteRuleApi(eventId, removed.id); }
+                          catch { setRules(await getRules(eventId).catch(() => rules)); }
+                        }
+                      }}>
                         <TrashIcon size={14} />
                       </IconButton>
                       <IconButton variant="sm-fill" title="編輯" onClick={() => setRuleEdit(i)}>
@@ -483,7 +540,7 @@ export default function RulesPage() {
                       <IconButton variant="sm" title="取消" onClick={() => setRuleEdit(null)}>
                         <XIcon size={14} />
                       </IconButton>
-                      <IconButton variant="sm-fill" title="儲存" onClick={() => setRuleEdit(null)}>
+                      <IconButton variant="sm-fill" title="儲存" onClick={() => void handleSaveRule(i)}>
                         <CheckIcon size={14} />
                       </IconButton>
                     </span>

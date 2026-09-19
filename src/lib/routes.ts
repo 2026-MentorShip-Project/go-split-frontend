@@ -4,6 +4,7 @@ export const ROUTES = {
   EVENTS: {
     CREATE: "/events/create",
     INVITE: "/events/invite",
+    JOIN: "/events/join",
     DETAIL: (id: string | number) => `/events/${id}`,
     GROUP: (id: string | number) => `/events/${id}/group`,
     RULES: (id: string | number) => `/events/${id}/rules`,
@@ -13,7 +14,7 @@ export const ROUTES = {
   },
 } as const;
 
-const EXCLUDED_EVENT_PATHS: string[] = [ROUTES.EVENTS.CREATE, ROUTES.EVENTS.INVITE];
+const EXCLUDED_EVENT_PATHS: string[] = [ROUTES.EVENTS.CREATE, ROUTES.EVENTS.INVITE, ROUTES.EVENTS.JOIN];
 
 export function isEventDetailPage(pathname: string | null): boolean {
   if (!pathname) return false;

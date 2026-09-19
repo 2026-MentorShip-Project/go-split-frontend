@@ -1,5 +1,6 @@
-import { BASE_URL, apiFetch, apiPost, apiDelete } from "./constant";
+import { BASE_URL, apiFetch, apiPost, apiPatch, apiDelete } from "./constant";
 import { EventDetailMember } from "./mombers";
+import type { Rule, RuleGroup } from "@/lib/types";
 
 export interface CreateEventRequest {
   name: string;
@@ -207,6 +208,65 @@ export async function deleteCondTag(eventId: number, label: string): Promise<voi
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? "刪除條件標籤失敗");
+  }
+}
+
+// Rules
+
+function mapRuleFromApi(dto: Record<string, unknown>): Rule {
+  return {
+    id: dto.id as number,
+    tag: dto.item_tag as string,
+    ordinal: dto.ordinal as number | undefined,
+    groups: (dto.groups as RuleGroup[]) ?? [],
+    rest: (dto.rest as Rule["rest"]) ?? undefined,
+  };
+}
+
+export async function getRules(eventId: number): Promise<Rule[]> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/rules`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "取得分攤規則失敗");
+  }
+  const data = await res.json();
+  return (data.rules ?? []).map(mapRuleFromApi);
+}
+
+export async function createRule(
+  eventId: number,
+  rule: { tag: string; groups?: RuleGroup[]; rest?: Rule["rest"] | null },
+): Promise<Rule> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/rules`, {
+    item_tag: rule.tag,
+    groups: rule.groups,
+    rest: rule.rest ?? null,
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "新增分攤規則失敗");
+  }
+  return mapRuleFromApi(await res.json());
+}
+
+export async function updateRuleApi(
+  eventId: number,
+  ruleId: number,
+  body: { groups?: RuleGroup[]; rest?: Rule["rest"] | null },
+): Promise<Rule> {
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}/rules/${ruleId}`, body);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "更新分攤規則失敗");
+  }
+  return mapRuleFromApi(await res.json());
+}
+
+export async function deleteRuleApi(eventId: number, ruleId: number): Promise<void> {
+  const res = await apiDelete(`${BASE_URL}/events/${eventId}/rules/${ruleId}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "刪除分攤規則失敗");
   }
 }
 

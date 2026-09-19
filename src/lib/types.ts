@@ -77,12 +77,14 @@ export interface RuleGroup {
 }
 
 export interface Rule {
+  id?: number;
   tag: string;
   groups: RuleGroup[];
   rest?: {
     mode: 'exclude' | 'weight';
     wt: string;
   };
+  ordinal?: number;
 }
 
 export interface TagEdit {

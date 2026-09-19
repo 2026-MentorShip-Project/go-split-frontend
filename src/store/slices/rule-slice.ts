@@ -37,18 +37,9 @@ export interface RuleSlice {
 }
 
 export const createRuleSlice: StateCreator<RuleSlice, [], [], RuleSlice> = (set) => ({
-  rules: [
-    { tag: '肉', groups: [{ conds: ['吃素'], mode: 'exclude', wt: '' }] },
-    {
-      tag: '酒',
-      groups: [
-        { conds: ['不喝酒'], mode: 'exclude', wt: '' },
-        { conds: ['食物過敏'], mode: 'weight', wt: '0.5' },
-      ],
-    },
-  ],
-  itemTags: ['肉', '酒', '素食', '交通', '其他'],
-  condTags: ['吃素', '不喝酒', '不吃牛', '食物過敏'],
+  rules: [],
+  itemTags: [],
+  condTags: [],
   ruleEdit: null,
   ruleNew: false,
   ruleAlert: null,

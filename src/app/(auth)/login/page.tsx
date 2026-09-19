@@ -3,7 +3,7 @@
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
-import { googleLogin, joinByCode } from "@/api/auth";
+import { googleLogin } from "@/api/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState } from "react";
@@ -14,13 +14,11 @@ export default function LoginPage() {
   const setCode = useStore((s) => s.setCode);
   const join2 = useStore((s) => s.join2);
   const setJoin2 = useStore((s) => s.setJoin2);
-  const setGuest = useStore((s) => s.setGuest);
   const setFirstJoin = useStore((s) => s.setFirstJoin);
   const setUserName = useStore((s) => s.setUserName);
 
   const [showInvite, setShowInvite] = useState(false);
   const [joinTouched, setJoinTouched] = useState(false);
-  const [joinLoading, setJoinLoading] = useState(false);
   const joinMailErr = joinTouched && !join2.mail.trim();
   const joinPhoneErr = joinTouched && !join2.phone.trim();
   const codeErr = joinTouched && !code.trim();
@@ -42,21 +40,11 @@ export default function LoginPage() {
     }
   };
 
-  const handleJoinByCode = async () => {
+  const handleJoinByCode = () => {
     setJoinTouched(true);
     if (!join2.mail.trim() || !join2.phone.trim() || !code.trim()) return;
-    setJoinLoading(true);
-    try {
-      const result = await joinByCode({ code, email: join2.mail, phone: join2.phone });
-      localStorage.setItem('guest_session', JSON.stringify(result));
-      setGuest(true);
-      setFirstJoin(true);
-      router.push("/events/invite");
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "加入活動失敗");
-    } finally {
-      setJoinLoading(false);
-    }
+    setFirstJoin(true);
+    router.push("/events/invite");
   };
 
   return (
@@ -145,9 +133,7 @@ export default function LoginPage() {
             />
             {codeErr && <div className="field-err">請填寫活動邀請碼</div>}
           </div>
-          <Button onClick={handleJoinByCode} disabled={joinLoading}>
-            {joinLoading ? "加入中…" : "進入活動"}
-          </Button>
+          <Button onClick={handleJoinByCode}>進入活動</Button>
           <button
             className="btn-link btn-link--muted"
             style={{ alignSelf: "center", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text3)" }}
