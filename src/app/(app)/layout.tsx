@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
 import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import { isEventDetailPage, ROUTES } from "@/lib/routes";
+import { getEvent } from "@/api/event";
+import type { RoleType } from "@/lib/types";
 
 function extractEventId(pathname: string | null): string | null {
   if (!pathname) return null;
@@ -18,19 +20,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { menuOpen, menuIn, role, settled, closeMenu } = useStore(
+  const { menuOpen, menuIn, role, settled, closeMenu, setRole } = useStore(
     useShallow((s) => ({
       menuOpen: s.menuOpen,
       menuIn: s.menuIn,
       role: s.role,
       settled: s.settled,
       closeMenu: s.closeMenu,
+      setRole: s.setRole,
     }))
   );
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    getEvent(Number(eventId))
+      .then((ev) => setRole(ev.my_role as RoleType))
+      .catch(() => {});
+  }, [eventId, setRole]);
 
   const activeScreen = useMemo(() => {
     if (!pathname) return "";

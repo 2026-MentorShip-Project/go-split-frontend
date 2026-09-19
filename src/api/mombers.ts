@@ -77,3 +77,16 @@ export async function deleteMemberById(
     throw new Error(data.error ?? "刪除成員失敗");
   }
 }
+
+export async function getMemberRole(
+  eventId: number,
+  memberId: number,
+): Promise<ApiRole> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/members/${memberId}/role`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "取得成員角色失敗");
+  }
+  const data = await res.json();
+  return data.role ?? "member";
+}

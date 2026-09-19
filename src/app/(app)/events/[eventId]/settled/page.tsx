@@ -139,50 +139,52 @@ export default function SettledEventPage() {
         )}
       </div>
 
-      {/* My Flow */}
-      <div className="card mt-20" style={{ padding: 20 }}>
-        <div className="section-title">我的付款流向</div>
-        <div className="flex-col gap-8 mt-14">
-          {myFlow.hasLines ? (
-            myFlow.lines.map((l, i) => (
-              <button
-                key={i}
-                className="card"
-                style={{
-                  width: "100%", textAlign: "left", padding: "14px 16px", cursor: "pointer",
-                  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10,
-                }}
-                onClick={l.open}
-              >
-                <span className="fs14">{l.text}</span>
-                <span className="flex items-center gap-8">
-                  <span className="fs16 fw700">{l.amount}</span>
-                  <span className="text3">›</span>
-                </span>
-              </button>
-            ))
-          ) : (
-            <div className="fs14 text3">你的款項已平衡，無需轉帳</div>
-          )}
-        </div>
-        <div
-          className="flex between"
-          style={{
-            alignItems: "baseline", gap: 10, marginTop: 14, paddingTop: 12,
-            borderTop: "1px solid var(--ln-control)",
-          }}
-        >
-          <span className="fs12 text3">{myFlow.summaryLabel}</span>
-          <span
+      {/* My Flow — visible to host/co only */}
+      {(evData.my_role === "host" || evData.my_role === "co") && (
+        <div className="card mt-20" style={{ padding: 20 }}>
+          <div className="section-title">我的付款流向</div>
+          <div className="flex-col gap-8 mt-14">
+            {myFlow.hasLines ? (
+              myFlow.lines.map((l, i) => (
+                <button
+                  key={i}
+                  className="card"
+                  style={{
+                    width: "100%", textAlign: "left", padding: "14px 16px", cursor: "pointer",
+                    display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10,
+                  }}
+                  onClick={l.open}
+                >
+                  <span className="fs14">{l.text}</span>
+                  <span className="flex items-center gap-8">
+                    <span className="fs16 fw700">{l.amount}</span>
+                    <span className="text3">›</span>
+                  </span>
+                </button>
+              ))
+            ) : (
+              <div className="fs14 text3">你的款項已平衡，無需轉帳</div>
+            )}
+          </div>
+          <div
+            className="flex between"
             style={{
-              fontSize: 18, fontWeight: 700,
-              color: myFlow.positive ? "var(--receive)" : "var(--owe)",
+              alignItems: "baseline", gap: 10, marginTop: 14, paddingTop: 12,
+              borderTop: "1px solid var(--ln-control)",
             }}
           >
-            {myFlow.summary}
-          </span>
+            <span className="fs12 text3">{myFlow.summaryLabel}</span>
+            <span
+              style={{
+                fontSize: 18, fontWeight: 700,
+                color: myFlow.positive ? "var(--receive)" : "var(--owe)",
+              }}
+            >
+              {myFlow.summary}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Transfer Note */}
       <div
