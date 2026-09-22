@@ -7,7 +7,6 @@ interface DrawerProps {
   onNavigate: (screen: string) => void;
   activeScreen: string;
   isHost: boolean;
-  isSettled: boolean;
 }
 
 const NAV_ITEMS = [
@@ -18,7 +17,7 @@ const NAV_ITEMS = [
 
 const HOST_ITEMS = [
   { key: "group", label: "群組設定", hint: "" },
-  { key: "payments", label: "分帳產出/繳款狀況", hint: "" },
+  { key: "settle", label: "分帳產出/繳款狀況", hint: "" },
 ];
 
 export default function Drawer({
@@ -28,7 +27,6 @@ export default function Drawer({
   onNavigate,
   activeScreen,
   isHost,
-  isSettled,
 }: DrawerProps) {
   if (!open) return null;
 
@@ -70,9 +68,7 @@ export default function Drawer({
 
             {isHost && (
               <>
-                {HOST_ITEMS.filter((item) =>
-                  item.key === "payments" ? isSettled : true,
-                ).map((item) => (
+                {HOST_ITEMS.map((item) => (
                   <li key={item.key}>
                     <button
                       className={`drawer-item${activeScreen === item.key ? " is-active" : ""}`}

@@ -20,12 +20,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { menuOpen, menuIn, role, settled, closeMenu, setRole } = useStore(
+  const { menuOpen, menuIn, role, closeMenu, setRole } = useStore(
     useShallow((s) => ({
       menuOpen: s.menuOpen,
       menuIn: s.menuIn,
       role: s.role,
-      settled: s.settled,
       closeMenu: s.closeMenu,
       setRole: s.setRole,
     }))
@@ -47,7 +46,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (pathname === "/dashboard") return "home";
     if (pathname.includes("/group")) return "group";
     if (pathname.includes("/rules")) return "rules";
-    if (pathname.includes("/payments")) return "payments";
+    if (pathname.includes("/settle")) return "settle";
     if (pathname.match(/^\/events\/\d+$/)) return "event";
     return "";
   }, [pathname]);
@@ -67,8 +66,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       case "rules":
         if (eventId) router.push(ROUTES.EVENTS.RULES(eventId));
         break;
-      case "payments":
-        if (eventId) router.push(ROUTES.EVENTS.PAYMENTS(eventId));
+      case "settle":
+        if (eventId) router.push(ROUTES.EVENTS.SETTLE(eventId));
         break;
     }
   }, [closeMenu, router, eventId]);
@@ -82,7 +81,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onNavigate={handleNavigate}
               activeScreen={activeScreen}
               isHost={isHost}
-              isSettled={settled}
               showNav={showNav}
             />
           )}
@@ -96,7 +94,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onNavigate={handleNavigate}
             activeScreen={activeScreen}
             isHost={isHost}
-            isSettled={settled}
           />
         )}
       </div>

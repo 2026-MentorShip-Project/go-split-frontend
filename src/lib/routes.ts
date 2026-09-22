@@ -9,6 +9,8 @@ export const ROUTES = {
     GROUP: (id: string | number) => `/events/${id}/group`,
     RULES: (id: string | number) => `/events/${id}/rules`,
     PAYMENTS: (id: string | number) => `/events/${id}/payments`,
+    SETTLE: (id: string | number) => `/events/${id}/settle`,
+    SETTLE_DONE: (id: string | number) => `/events/${id}/settle/done`,
     SETTLED: (id: string | number) => `/events/${id}/settled`,
     ARCHIVED: (id: string | number) => `/events/${id}/archived`,
   },

@@ -55,11 +55,12 @@ export async function createEvent(body: CreateEventRequest): Promise<CreateEvent
 export interface EventDetailDetail {
   id: number;
   name: string;
-  amount_cents: number;
+  amount: number;
   tag: string;
   note: string;
   ordinal: number;
-  custom_shares: Record<string, number>;
+  custom_amounts?: Record<string, number>;
+  custom_shares?: Record<string, number>;
 }
 
 export interface EventDetailItem {
@@ -67,7 +68,8 @@ export interface EventDetailItem {
   payer_member_id: number;
   author_member_id: number;
   has_receipt: boolean;
-  total_cents: number;
+  total?: number;
+  total_cents?: number;
   created_at: string;
   details: EventDetailDetail[];
 }
@@ -84,7 +86,9 @@ export interface EventDetail {
   settled: boolean;
   archived: boolean;
   my_role: string;
-  total_cents: number;
+  total?: number;
+  total_cents?: number;
+  transfer_note?: string;
   members: EventDetailMember[];
   items: EventDetailItem[];
 }
@@ -104,10 +108,10 @@ export async function getEvent(id: number): Promise<EventDetail> {
 
 export interface CreateDetailRequest {
   name: string;
-  amount_cents?: number;
+  amount?: number;
   tag?: string;
   note?: string;
-  custom_shares?: Record<string, number>;
+  custom_amounts?: Record<string, number>;
 }
 
 export interface CreateItemRequest {

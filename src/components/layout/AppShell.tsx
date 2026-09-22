@@ -14,7 +14,6 @@ export default function AppShell({ children }: AppShellProps) {
   const menuIn = useStore((s) => s.menuIn);
   const closeMenu = useStore((s) => s.closeMenu);
   const role = useStore((s) => s.role);
-  const settled = useStore((s) => s.settled);
 
   const isHost = role === "host" || role === "co";
 
@@ -30,7 +29,6 @@ export default function AppShell({ children }: AppShellProps) {
             onNavigate={handleNavigate}
             activeScreen=""
             isHost={isHost}
-            isSettled={settled}
             showNav
           />
           <div className="app-scroll">{children}</div>
@@ -44,7 +42,6 @@ export default function AppShell({ children }: AppShellProps) {
         onNavigate={handleNavigate}
         activeScreen=""
         isHost={isHost}
-        isSettled={settled}
       />
     </div>
   );

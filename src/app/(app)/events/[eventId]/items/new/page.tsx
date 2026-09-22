@@ -54,7 +54,7 @@ export default function AddItemPage() {
         payer_member_id: myMemberId,
         details: draft.details.map((d) => ({
           name: d.name || "（未命名）",
-          amount_cents: Math.round((typeof d.amount === "number" ? d.amount : num(String(d.amount))) * 100),
+          amount: Math.round(typeof d.amount === "number" ? d.amount : num(String(d.amount))),
           tag: d.tags[0] ?? "",
           note: d.note,
         })),

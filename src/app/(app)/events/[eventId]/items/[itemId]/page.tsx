@@ -23,10 +23,10 @@ interface LocalDetail {
 function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
   return {
     name: d.name,
-    amount: String(d.amount_cents / 100),
+    amount: String(d.amount ?? 0),
     tags: d.tag ? [d.tag] : [],
     note: d.note || "",
-    custom_shares: d.custom_shares || {},
+    custom_shares: d.custom_amounts ?? d.custom_shares ?? {},
   };
 }
 
@@ -102,10 +102,10 @@ export default function ItemDetailPage() {
       const res = await updateItem(eventId, itemId, {
         details: details.map((d) => ({
           name: d.name || "（未命名）",
-          amount_cents: Math.round(num(d.amount) * 100),
+          amount: Math.round(num(d.amount)),
           tag: d.tags[0] ?? "",
           note: d.note,
-          custom_shares: Object.keys(d.custom_shares).length > 0 ? d.custom_shares : undefined,
+          custom_amounts: Object.keys(d.custom_shares).length > 0 ? d.custom_shares : undefined,
         })),
       });
       setDetails(res.details.map(apiDetailToLocal));
@@ -222,12 +222,12 @@ export default function ItemDetailPage() {
                       {Object.keys(d.custom_shares).length > 0 && (
                         <div className="mt-12">
                           <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤人員</div>
-                          {Object.entries(d.custom_shares).map(([mid, cents]) => {
+                          {Object.entries(d.custom_shares).map(([mid, amount]) => {
                             const member = members.find((m) => String(m.id) === mid);
                             return (
                               <div key={mid} className="flex between items-center" style={{ padding: "2px 0" }}>
                                 <span className="fs13">{member?.display ?? mid}</span>
-                                <span className="fs13 text2">{money(cents / 100)}</span>
+                                <span className="fs13 text2">{money(amount)}</span>
                               </div>
                             );
                           })}

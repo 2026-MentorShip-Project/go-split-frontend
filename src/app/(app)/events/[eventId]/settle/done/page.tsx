@@ -1,77 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useStore } from "@/store";
-import { getEvent, type EventDetail } from "@/api/event";
 import Button from "@/components/ui/Button";
-import { itemTotal, detailShares, computeTransfers } from "@/lib/calculations";
+import { useSettlementPreview } from "@/hooks/useSettlementPreview";
 import { money } from "@/lib/formatters";
-import type { FlowRow } from "@/lib/types";
 
 export default function SettleDonePage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
 
-  const [evData, setEvData] = useState<EventDetail | null>(null);
-  const itemsBy = useStore((s) => s.itemsBy);
-
-  const members = useStore((s) => s.members);
-  const rules = useStore((s) => s.rules);
-  const transferNote = useStore((s) => s.transferNote);
-  const copiedReport = useStore((s) => s.copiedReport);
-  const setCopiedReport = useStore((s) => s.setCopiedReport);
-
-  useEffect(() => {
-    void getEvent(eventId).then(setEvData).catch(() => {});
-  }, [eventId]);
-
-  const items = itemsBy[eventId] || [];
-  const totalAmount = items.reduce((a, it) => a + itemTotal(it), 0);
-
-  const totals: Record<string, number> = {};
-  const paidBy: Record<string, number> = {};
-  members.forEach((m) => { totals[m.id] = 0; paidBy[m.id] = 0; });
-  items.forEach((it) => {
-    const payer = members.find((m) => m.name === it.by);
-    if (payer) paidBy[payer.id] = (paidBy[payer.id] || 0) + itemTotal(it);
-    it.details.forEach((d) => {
-      const shares = detailShares(d, members, rules);
-      members.forEach((m) => {
-        totals[m.id] = (totals[m.id] || 0) + (shares.map[m.id] || 0);
-      });
-    });
-  });
-
-  const transfers = computeTransfers(members, paidBy, totals);
-  const flowRows: FlowRow[] = members.map((m) => {
-    const lines = transfers
-      .filter((t) => t.from.id === m.id || t.to.id === m.id)
-      .map((t) => ({
-        text: t.from.id === m.id ? `→ 付給 ${t.to.name}` : `← 收自 ${t.from.name}`,
-        amount: money(Math.round(t.amount)),
-      }));
-    const net = (paidBy[m.id] || 0) - (totals[m.id] || 0);
-    return {
-      name: m.name,
-      role: m.role,
-      lines,
-      summaryLabel: net >= 0 ? "應收回" : "應付出",
-      summary: money(Math.abs(Math.round(net))),
-      positive: net >= 0,
-      negative: net < 0,
-    };
-  });
+  const { loading, error, preview } = useSettlementPreview(eventId);
+  const [copiedReport, setCopiedReport] = useState(false);
 
   const handleCopyReport = () => {
-    const text = flowRows
-      .map((r) => `${r.name}（${r.role}）: ${r.summaryLabel} ${r.summary}`)
+    if (!preview) return;
+    const text = preview.flows
+      .map((r) => `${r.name}（${r.role}）: ${r.net >= 0 ? "應收回" : "應付出"} ${money(Math.abs(r.net))}`)
       .join("\n");
-    navigator.clipboard?.writeText(text);
+    void navigator.clipboard?.writeText(text);
     setCopiedReport(true);
     setTimeout(() => setCopiedReport(false), 2000);
   };
+
+  if (loading) return <div className="page-shell">載入中…</div>;
+  if (error || !preview) return <div className="page-shell">{error ?? "載入分帳資料失敗"}</div>;
 
   return (
     <div className="page-shell">
@@ -87,19 +41,21 @@ export default function SettleDonePage() {
         </div>
         <div className="mt-16" style={{ fontSize: 24, fontWeight: 700 }}>分帳已產出</div>
         <div className="mt-6 fs14">
-          {evData?.name} · 合計 {money(totalAmount)}
+          {preview.eventName} · 合計 {money(preview.grandTotal)}
         </div>
       </div>
 
-      <div
-        className="mt-20"
-        style={{
-          padding: "16px 20px", borderRadius: 8,
-          background: "rgba(111,183,183,.10)", fontSize: 14, lineHeight: 1.7,
-        }}
-      >
-        {transferNote}
-      </div>
+      {preview.transferNote && (
+        <div
+          className="mt-20"
+          style={{
+            padding: "16px 20px", borderRadius: 8,
+            background: "rgba(111,183,183,.10)", fontSize: 14, lineHeight: 1.7,
+          }}
+        >
+          {preview.transferNote}
+        </div>
+      )}
 
       <div className="card mt-16" style={{ padding: "16px 20px" }}>
         <div className="flex between items-center">
@@ -120,8 +76,8 @@ export default function SettleDonePage() {
             gap: 16,
           }}
         >
-          {flowRows.map((row) => (
-            <div key={row.name} className="card" style={{ padding: "14px 16px" }}>
+          {preview.flows.map((row) => (
+            <div key={row.memberId} className="card" style={{ padding: "14px 16px" }}>
               <div className="flex between items-center gap-10">
                 <span className="fs16 fw500">{row.name}</span>
                 <span className="pill-neutral">{row.role}</span>
@@ -130,7 +86,7 @@ export default function SettleDonePage() {
                 {row.lines.map((l, i) => (
                   <div key={i} className="flex between" style={{ alignItems: "baseline", gap: 10 }}>
                     <span className="fs14 text2">{l.text}</span>
-                    <span className="fs14 fw500" style={{ flex: "none" }}>{l.amount}</span>
+                    <span className="fs14 fw500" style={{ flex: "none" }}>{money(l.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -141,14 +97,14 @@ export default function SettleDonePage() {
                   borderTop: "1px solid var(--ln-control)",
                 }}
               >
-                <span className="fs12 text2">{row.summaryLabel}</span>
+                <span className="fs12 text2">{row.net >= 0 ? "應收回" : "應付出"}</span>
                 <span
                   style={{
                     fontSize: 16, fontWeight: 700,
-                    color: row.positive ? "var(--receive)" : "var(--owe)",
+                    color: row.net >= 0 ? "var(--receive)" : "var(--owe)",
                   }}
                 >
-                  {row.summary}
+                  {money(Math.abs(row.net))}
                 </span>
               </div>
             </div>

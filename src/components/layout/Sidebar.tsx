@@ -4,7 +4,6 @@ interface SidebarProps {
   onNavigate: (screen: string) => void;
   activeScreen: string;
   isHost: boolean;
-  isSettled: boolean;
   showNav: boolean;
 }
 
@@ -15,14 +14,13 @@ const NAV_ITEMS = [
 
 const HOST_ITEMS = [
   { key: "group", label: "群組設定" },
-  { key: "payments", label: "分帳產出/繳款狀況" },
+  { key: "settle", label: "分帳產出/繳款狀況" },
 ];
 
 export default function Sidebar({
   onNavigate,
   activeScreen,
   isHost,
-  isSettled,
   showNav,
 }: SidebarProps) {
   return (
@@ -59,9 +57,7 @@ export default function Sidebar({
               <div className="sidebar-divider" />
               <div className="sidebar-label">管理</div>
               <nav className="sidebar-section">
-                {HOST_ITEMS.filter((item) =>
-                  item.key === "payments" ? isSettled : true,
-                ).map((item) => (
+                {HOST_ITEMS.map((item) => (
                   <button
                     key={item.key}
                     className={`sidebar-item${activeScreen === item.key ? " is-active" : ""}`}
