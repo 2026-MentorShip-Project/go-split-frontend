@@ -7,6 +7,7 @@ import { useShallow } from "zustand/shallow";
 import Input from "@/components/ui/Input";
 import { roleName, fmtIsoDatetime } from "@/lib/formatters";
 import { getEvents, type EventListItem } from "@/api/event";
+import { logout } from "@/api/auth";
 
 export default function HomePage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function HomePage() {
       userName: s.userName,
     }))
   );
+  const setUserName = useStore((s) => s.setUserName);
 
   const { setCur, code, setCode, setGuest } = useStore(
     useShallow((s) => ({
@@ -29,6 +31,13 @@ export default function HomePage() {
 
   const [apiEvents, setApiEvents] = useState<EventListItem[]>([]);
   const [eventsLoading, setEventsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userName) {
+      const stored = sessionStorage.getItem('userName');
+      if (stored) setUserName(stored);
+    }
+  }, [userName, setUserName]);
 
   useEffect(() => {
     getEvents()
@@ -59,7 +68,7 @@ export default function HomePage() {
     if (ev.archived) {
       router.push(`/events/${ev.id}/archived`);
     } else if (ev.settled) {
-      router.push(`/events/${ev.id}/settled`);
+      router.push(`/events/${ev.id}`);
     } else {
       router.push(`/events/${ev.id}`);
     }
@@ -92,7 +101,7 @@ export default function HomePage() {
               <button
                 className="btn-pill"
                 style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--ln-control)" }}
-                onClick={() => { setGuest(false); router.push("/login"); }}
+                onClick={() => { logout().finally(() => { window.location.href = "/login"; }); }}
               >
                 登出
               </button>

@@ -38,7 +38,7 @@ export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set)
   firstJoin: false,
   join2: { mail: '', phone: '' },
   code: '4KQ2-8P',
-  userName: typeof window !== 'undefined' ? (sessionStorage.getItem('userName') ?? '') : '',
+  userName: '',
 
   setGuest: (guest) => set({ guest }),
   setRole: (role) => set({ role }),

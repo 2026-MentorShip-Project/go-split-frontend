@@ -1,4 +1,4 @@
-import { BASE_URL, apiPost } from "./constant";
+import { BASE_URL, apiPost, apiFetch } from "./constant";
 
 export interface GoogleAuthResponse {
   id: number;
@@ -28,6 +28,11 @@ export interface JoinByCodeResponse {
   event_id: number;
   guest_id: number;
   role: string;
+}
+
+export async function logout(): Promise<void> {
+  await apiFetch(`${BASE_URL}/auth/logout`, { method: "POST" });
+  sessionStorage.removeItem('userName');
 }
 
 export async function joinByCode(req: JoinByCodeRequest): Promise<JoinByCodeResponse> {
