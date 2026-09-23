@@ -253,6 +253,16 @@ export async function deleteCondTag(eventId: number, label: string): Promise<voi
   }
 }
 
+// Archive
+
+export async function archiveEvent(eventId: number): Promise<void> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/archive`, {});
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "封存活動失敗");
+  }
+}
+
 // Rules
 
 function mapRuleFromApi(dto: Record<string, unknown>): Rule {
