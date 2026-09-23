@@ -61,6 +61,10 @@ export interface EventDetailDetail {
   ordinal: number;
   custom_amounts?: Record<string, number>;
   custom_shares?: Record<string, number>;
+  allocation?: {
+    shares: { member_id: number; amount: number }[];
+    excluded: { member_id: number; amount: number }[];
+  };
 }
 
 export interface EventDetailItem {
@@ -91,6 +95,30 @@ export interface EventDetail {
   transfer_note?: string;
   members: EventDetailMember[];
   items: EventDetailItem[];
+}
+
+export interface JoinEventRequest {
+  code: string;
+  name?: string;
+  note?: string;
+  cond_tags?: string[];
+}
+
+export interface JoinEventResponse {
+  event_id: number;
+  name: string;
+  role: string;
+}
+
+export async function joinEvent(body: JoinEventRequest): Promise<JoinEventResponse> {
+  const res = await apiPost(`${BASE_URL}/events/join`, body);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 404) throw new Error("找不到此邀請碼，請確認後再試");
+    if (res.status === 410) throw new Error("此活動已結算，無法再加入");
+    throw new Error(data.error ?? "加入活動失敗");
+  }
+  return res.json();
 }
 
 export async function getEvent(id: number): Promise<EventDetail> {

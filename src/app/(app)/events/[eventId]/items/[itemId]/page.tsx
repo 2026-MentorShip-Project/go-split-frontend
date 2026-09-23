@@ -21,12 +21,20 @@ interface LocalDetail {
 }
 
 function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
+  const sharesFromAllocation = d.allocation?.shares?.reduce<Record<string, number>>(
+    (acc, s) => { acc[String(s.member_id)] = s.amount; return acc; },
+    {}
+  ) ?? {};
+  const custom_shares =
+    Object.keys(sharesFromAllocation).length > 0
+      ? sharesFromAllocation
+      : d.custom_amounts ?? d.custom_shares ?? {};
   return {
     name: d.name,
     amount: String(d.amount ?? 0),
     tags: d.tag ? [d.tag] : [],
     note: d.note || "",
-    custom_shares: d.custom_amounts ?? d.custom_shares ?? {},
+    custom_shares,
   };
 }
 
@@ -46,9 +54,9 @@ export default function ItemDetailPage() {
 
   const [details, setDetails] = useState<LocalDetail[]>([]);
   const [members, setMembers] = useState<EventDetailMember[]>([]);
-  const [payerName, setPayerName] = useState("");
-  const [hasReceipt, setHasReceipt] = useState(false);
+  const [collapsedShares, setCollapsedShares] = useState<Set<number>>(new Set());
   const [myRole, setMyRole] = useState("");
+  const [settled, setSettled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -62,11 +70,9 @@ export default function ItemDetailPage() {
     ])
       .then(([item, ev, tags]) => {
         setDetails(item.details.map(apiDetailToLocal));
-        setHasReceipt(item.has_receipt);
         setMembers(ev.members);
-        const payer = ev.members.find((m) => m.id === item.payer_member_id);
-        setPayerName(payer?.display ?? "—");
         setMyRole(ev.my_role);
+        setSettled(ev.settled);
         setItemTags(tags);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "載入失敗"))
@@ -76,7 +82,7 @@ export default function ItemDetailPage() {
   if (loading) return <div className="page-shell">載入中…</div>;
   if (error) return <div className="page-shell">{error}</div>;
 
-  const canEditItem = myRole === "host" || myRole === "co";
+  const canEditItem = !settled && (myRole === "host" || myRole === "co");
   const total = details.reduce((sum, d) => sum + num(d.amount), 0);
 
   const updateDetailLocal = (detailIdx: number, patch: Partial<LocalDetail>) => {
@@ -166,28 +172,8 @@ export default function ItemDetailPage() {
           gap: 20, alignItems: "start",
         }}
       >
-        <div>
-          <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px" }}>
-            <span className="fs18 fw700">{payerName} 代墊</span>
-            <span className="fs18 fw700">{money(total)}</span>
-          </div>
-          <div className="receipt-drop" style={{ cursor: "default" }}>
-            <span style={{ font: "11.5px/1.6 ui-monospace,Menlo,monospace", color: "var(--text2)" }}>
-              {hasReceipt ? "已上傳收據" : "無收據"}
-            </span>
-          </div>
-        </div>
 
         <div>
-          <div className="flex items-center between gap-10">
-            <span className="section-title">明細</span>
-            {canEditItem && (
-              <IconButton variant="sm" title="新增明細" onClick={handleAddDetail}>
-                <PlusIcon size={16} />
-              </IconButton>
-            )}
-          </div>
-
           <div className="flex-col gap-16 mt-10">
             {details.map((d, i) => {
               const isEditing = editDetail === i;

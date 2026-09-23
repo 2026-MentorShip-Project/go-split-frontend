@@ -60,7 +60,7 @@ export default function PairDetailPage() {
     <div className="page-shell">
       <div className="topbar">
         <div className="topbar-row">
-          <IconButton onClick={() => router.push(`/events/${eventId}/settled`)}>
+          <IconButton onClick={() => router.push(`/events/${eventId}`)}>
             <BackIcon />
           </IconButton>
           <span className="topbar-title">分攤明細</span>

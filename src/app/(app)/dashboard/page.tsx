@@ -6,7 +6,7 @@ import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import Input from "@/components/ui/Input";
 import { roleName, fmtIsoDatetime } from "@/lib/formatters";
-import { getEvents, type EventListItem } from "@/api/event";
+import { getEvents, joinEvent, type EventListItem } from "@/api/event";
 import { logout } from "@/api/auth";
 
 export default function HomePage() {
@@ -74,9 +74,16 @@ export default function HomePage() {
     }
   }, [setCur, router]);
 
-  const handleJoinByCode = useCallback(() => {
-    if (code.trim()) router.push("/events/invite");
-  }, [code, router]);
+  const handleJoinByCode = useCallback(async () => {
+    if (!code.trim()) return;
+    try {
+      const result = await joinEvent({ code: code.trim() });
+      setCur(result.event_id);
+      router.push(`/events/${result.event_id}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "加入活動失敗");
+    }
+  }, [code, router, setCur]);
 
   return (
     <div className="page-shell">

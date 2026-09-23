@@ -1,49 +1,77 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Button from "@/components/ui/Button";
-import { itemTotal, detailShares, computeTransfers } from "@/lib/calculations";
+import Dialog from "@/components/ui/Dialog";
 import { money } from "@/lib/formatters";
+import { getEvent, archiveEvent, type EventDetail } from "@/api/event";
+import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
 
 export default function PaymentsPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
-
-  const members = useStore((s) => s.members);
-  const itemsBy = useStore((s) => s.itemsBy);
-  const rules = useStore((s) => s.rules);
   const openMenu = useStore((s) => s.openMenu);
-  const paidBy2 = useStore((s) => s.paidBy2);
-  const setPaidBy2 = useStore((s) => s.setPaidBy2);
 
-  const items = itemsBy[eventId] || [];
-  const totals: Record<string, number> = {};
-  const paidByMap: Record<string, number> = {};
-  members.forEach((m) => { totals[m.id] = 0; paidByMap[m.id] = 0; });
-  items.forEach((it) => {
-    const payer = members.find((m) => m.name === it.by);
-    if (payer) paidByMap[payer.id] = (paidByMap[payer.id] || 0) + itemTotal(it);
-    it.details.forEach((d) => {
-      const shares = detailShares(d, members, rules);
-      members.forEach((m) => {
-        totals[m.id] = (totals[m.id] || 0) + (shares.map[m.id] || 0);
-      });
-    });
-  });
+  const [ev, setEv] = useState<EventDetail | null>(null);
+  const [shares, setShares] = useState<SharesResponse | null>(null);
+  const [transfers, setTransfers] = useState<TransfersResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
-  const transfers = computeTransfers(members, paidByMap, totals);
-  const eventPaid = paidBy2[eventId] || {};
+  useEffect(() => {
+    let cancelled = false;
 
-  const togglePaid = (key: string) => {
-    const updated = { ...paidBy2, [eventId]: { ...eventPaid, [key]: !eventPaid[key] } };
-    setPaidBy2(updated);
+    async function load() {
+      setLoading(true);
+      try {
+        const [event, sharesData, transfersData] = await Promise.all([
+          getEvent(eventId),
+          getShares(eventId),
+          getTransfers(eventId),
+        ]);
+        if (cancelled) return;
+        setEv(event);
+        setShares(sharesData);
+        setTransfers(transfersData);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "載入失敗");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void load();
+    return () => { cancelled = true; };
+  }, [eventId]);
+
+  useEffect(() => {
+    if (!ev) return;
+    if (ev.my_role !== "host") {
+      router.replace(`/events/${eventId}`);
+    }
+  }, [ev, eventId, router]);
+
+  const handleArchive = async () => {
+    setArchiving(true);
+    try {
+      await archiveEvent(eventId);
+      router.push("/dashboard");
+    } catch {
+      setArchiving(false);
+      setShowArchiveDialog(false);
+    }
   };
 
-  const handleArchive = () => {
-    router.push("/dashboard");
-  };
+  if (loading) return <div className="page-shell">載入中…</div>;
+  if (error || !ev || !shares || !transfers) return <div className="page-shell">{error ?? "載入失敗"}</div>;
+
+  const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));
+  const transferList = transfers.transfers ?? [];
 
   return (
     <div className="page-shell">
@@ -52,47 +80,63 @@ export default function PaymentsPage() {
           <button className="icon-btn hamburger" title="更多操作" onClick={openMenu}>
             <span /><span /><span />
           </button>
-          <span className="topbar-title">繳款情況確認</span>
+          <span className="topbar-title">付款流向清單</span>
         </div>
       </div>
 
       <div className="grid-cards mt-10">
-        {transfers.map((t) => (
-          <div key={t.key} className="card card-pad flex between items-center gap-12">
-            <span className="flex-col gap-4">
-              <span className="fs14">{t.from.name} → {t.to.name}</span>
-              <span className="fs12 text3">{eventPaid[t.key] ? "已繳清" : "未繳"}</span>
-            </span>
-            <span className="flex items-center gap-12">
+        {transferList.map((t) => {
+          const from = memberById[t.from_id];
+          const to = memberById[t.to_id];
+          return (
+            <div
+              key={`${t.from_id}-${t.to_id}`}
+              className="card card-pad flex between items-center gap-12"
+            >
+              <span className="fs14">
+                {from?.display ?? `#${t.from_id}`} → {to?.display ?? `#${t.to_id}`}
+              </span>
               <span className="fs16 fw700">{money(Math.round(t.amount))}</span>
-              {eventPaid[t.key] ? (
-                <button
-                  style={{
-                    width: 20, height: 20, borderRadius: 99, border: "none",
-                    background: "var(--teal)", color: "#fff", fontSize: 12,
-                    display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
-                  }}
-                  onClick={() => togglePaid(t.key)}
-                >
-                  ✓
-                </button>
-              ) : (
-                <button
-                  style={{
-                    width: 20, height: 20, borderRadius: 99,
-                    border: "1px solid var(--ln-control)", background: "#fff", cursor: "pointer",
-                  }}
-                  onClick={() => togglePaid(t.key)}
-                />
-              )}
-            </span>
-          </div>
-        ))}
+            </div>
+          );
+        })}
+        {transferList.length === 0 && (
+          <div className="empty-box">所有款項已平衡，無需轉帳</div>
+        )}
       </div>
 
-      <Button className="mt-20" onClick={handleArchive}>
-        已結清，封存活動
-      </Button>
+      {!ev.archived && (
+        <Button className="mt-20" onClick={() => setShowArchiveDialog(true)}>
+          結清活動
+        </Button>
+      )}
+
+      {showArchiveDialog && (
+        <Dialog
+          title="結清活動"
+          body="結清後活動將完全唯讀、不可還原"
+          danger
+          onClose={() => setShowArchiveDialog(false)}
+          actions={
+            <>
+              <button
+                className="btn-pill"
+                onClick={() => setShowArchiveDialog(false)}
+              >
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={handleArchive}
+                disabled={archiving}
+              >
+                {archiving ? "處理中…" : "確認結清"}
+              </button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }
