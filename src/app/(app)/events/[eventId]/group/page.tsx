@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Toast from "@/components/ui/Toast";
-import { PlusIcon, CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
+import { CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
 import {
   getEvent, type EventDetail,
   getCondTags
@@ -61,29 +61,13 @@ export default function GroupPage() {
       })));
     }).catch(() => {});
     void getCondTags(eventId).then(setCondTags).catch(() => {});
-  }, [eventId]);
+  }, [eventId, setCondTags, setMembers]);
 
   if (!evData) return <div className="page-shell">載入中…</div>;
 
   const canAddMember = evData.my_role === "host" || evData.my_role === "co";
-  const memberAddOn = editMember === null && newMember === null;
   const inviteCode = evData.invite_code;
   const inviteLink = `https://go-split.app/invite/${inviteCode}`;
-
-  const handleAddMember = () => {
-    const newM = {
-      id: `tmp-${Date.now()}`,
-      name: "",
-      role: "參與者" as const,
-      tags: [],
-      login: "", // TODO: API does not return login info
-      guest: true,
-    };
-    addMember(newM);
-    const idx = members.length;
-    setNewMember(idx);
-    setEditMember(idx);
-  };
 
   const handleSaveMember = async (i: number) => {
     const m = members[i];
@@ -259,22 +243,6 @@ export default function GroupPage() {
         <div style={{ flex: "2 1 380px", minWidth: 0 }}>
           <div className="flex items-center between gap-10">
             <span className="section-title">群組人員</span>
-            <div className="flex items-center gap-8">
-              {canAddMember && (
-                <>
-                  <span className="fs12 text2">{members.length} 人</span>
-                  {memberAddOn ? (
-                    <IconButton variant="sm" title="新增人員" onClick={handleAddMember}>
-                      <PlusIcon size={15} />
-                    </IconButton>
-                  ) : (
-                    <IconButton variant="sm-disabled" title="請先完成目前新增的人員">
-                      <PlusIcon size={15} />
-                    </IconButton>
-                  )}
-                </>
-              )}
-            </div>
           </div>
 
           {memberToast && (
