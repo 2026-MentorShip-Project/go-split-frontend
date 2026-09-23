@@ -11,7 +11,7 @@ export const ROUTES = {
     PAYMENTS: (id: string | number) => `/events/${id}/payments`,
     SETTLE: (id: string | number) => `/events/${id}/settle`,
     SETTLE_DONE: (id: string | number) => `/events/${id}/settle/done`,
-    SETTLED: (id: string | number) => `/events/${id}/settled`,
+    SETTLED: (id: string | number) => `/events/${id}`,
     ARCHIVED: (id: string | number) => `/events/${id}/archived`,
   },
 } as const;

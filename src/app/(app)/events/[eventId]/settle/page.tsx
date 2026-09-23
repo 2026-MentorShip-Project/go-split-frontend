@@ -87,10 +87,7 @@ export default function SettlePage() {
         {preview.items.length === 0 ? (
           <div className="empty-box mt-12">尚無款項</div>
         ) : (
-          <div
-            className="mt-12"
-            style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,260px),1fr))", gap: 16 }}
-          >
+          <div className="mt-12 flex-col gap-12">
             {preview.items.map((it) => (
               <div key={it.id} className="flex between items-center">
                 <span className="fs14">{it.label}</span>

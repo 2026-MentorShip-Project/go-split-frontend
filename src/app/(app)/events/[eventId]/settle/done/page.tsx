@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import { useSettlementPreview } from "@/hooks/useSettlementPreview";
@@ -12,17 +11,6 @@ export default function SettleDonePage() {
   const eventId = Number(params.eventId);
 
   const { loading, error, preview } = useSettlementPreview(eventId);
-  const [copiedReport, setCopiedReport] = useState(false);
-
-  const handleCopyReport = () => {
-    if (!preview) return;
-    const text = preview.flows
-      .map((r) => `${r.name}（${r.role}）: ${r.net >= 0 ? "應收回" : "應付出"} ${money(Math.abs(r.net))}`)
-      .join("\n");
-    void navigator.clipboard?.writeText(text);
-    setCopiedReport(true);
-    setTimeout(() => setCopiedReport(false), 2000);
-  };
 
   if (loading) return <div className="page-shell">載入中…</div>;
   if (error || !preview) return <div className="page-shell">{error ?? "載入分帳資料失敗"}</div>;
@@ -58,16 +46,7 @@ export default function SettleDonePage() {
       )}
 
       <div className="card mt-16" style={{ padding: "16px 20px" }}>
-        <div className="flex between items-center">
-          <span className="section-title">人員付款流向</span>
-          <button
-            className="btn-pill"
-            style={{ fontSize: 12, padding: "6px 12px" }}
-            onClick={handleCopyReport}
-          >
-            {copiedReport ? "已複製" : "複製報告"}
-          </button>
-        </div>
+        <div className="section-title">人員付款流向</div>
         <div
           className="mt-12"
           style={{
@@ -112,7 +91,7 @@ export default function SettleDonePage() {
         </div>
       </div>
 
-      <Button className="mt-12" onClick={() => router.push(`/events/${eventId}/settled`)}>
+      <Button className="mt-12" onClick={() => router.push(`/events/${eventId}`)}>
         返回活動頁
       </Button>
     </div>
