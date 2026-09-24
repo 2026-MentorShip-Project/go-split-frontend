@@ -1,4 +1,4 @@
-export const BASE_URL = process.env.API_URL;
+export const BASE_URL = "/api";
 
 export function apiFetch(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, { credentials: "include", ...init });
