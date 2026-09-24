@@ -69,7 +69,7 @@ export default function LoginPage() {
       </div>
 
       <div style={{ marginTop: 36, width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }}>
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID!}>
+        <GoogleOAuthProvider clientId={process.env.GOOGLE_CLIENT_ID!}>
           <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => console.error('Google 登入視窗載入或操作失敗')}
