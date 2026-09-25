@@ -20,11 +20,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { menuOpen, menuIn, role, closeMenu, setRole } = useStore(
+  const { menuOpen, menuIn, guest, role, cur, closeMenu, setRole } = useStore(
     useShallow((s) => ({
       menuOpen: s.menuOpen,
       menuIn: s.menuIn,
+      guest: s.guest,
       role: s.role,
+      cur: s.cur,
       closeMenu: s.closeMenu,
       setRole: s.setRole,
     }))
@@ -32,7 +34,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
+  const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
+  const isMember = guest || role === "member" || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
+
+  useEffect(() => {
+    if (pathname !== ROUTES.HOME && pathname !== ROUTES.EVENTS.CREATE) return;
+
+    let guestEventId = cur;
+    if (!guestEventId && typeof window !== "undefined") {
+      try {
+        guestEventId = JSON.parse(localStorage.getItem("guest_session") || "{}").event_id || 0;
+      } catch {
+        guestEventId = 0;
+      }
+    }
+
+    if (isMember) {
+      router.replace(guestEventId ? ROUTES.EVENTS.DETAIL(guestEventId) : ROUTES.LOGIN);
+    }
+  }, [cur, isMember, pathname, router]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -81,6 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onNavigate={handleNavigate}
               activeScreen={activeScreen}
               isHost={isHost}
+              isMember={isMember}
               showNav={showNav}
             />
           )}
@@ -94,6 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onNavigate={handleNavigate}
             activeScreen={activeScreen}
             isHost={isHost}
+            isMember={isMember}
           />
         )}
       </div>

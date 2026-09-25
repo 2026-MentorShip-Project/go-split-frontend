@@ -7,6 +7,7 @@ interface DrawerProps {
   onNavigate: (screen: string) => void;
   activeScreen: string;
   isHost: boolean;
+  isMember: boolean;
 }
 
 const NAV_ITEMS = [
@@ -27,6 +28,7 @@ export default function Drawer({
   onNavigate,
   activeScreen,
   isHost,
+  isMember,
 }: DrawerProps) {
   if (!open) return null;
 
@@ -53,7 +55,7 @@ export default function Drawer({
 
         <div className="drawer-body">
           <ul className="drawer-list">
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter((item) => !isMember || item.key !== "home").map((item) => (
               <li key={item.key}>
                 <button
                   className={`drawer-item${activeScreen === item.key ? " is-active" : ""}`}

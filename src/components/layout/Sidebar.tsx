@@ -4,6 +4,7 @@ interface SidebarProps {
   onNavigate: (screen: string) => void;
   activeScreen: string;
   isHost: boolean;
+  isMember: boolean;
   showNav: boolean;
 }
 
@@ -21,6 +22,7 @@ export default function Sidebar({
   onNavigate,
   activeScreen,
   isHost,
+  isMember,
   showNav,
 }: SidebarProps) {
   return (
@@ -32,13 +34,15 @@ export default function Sidebar({
 
       {showNav && (
         <>
-          <button
-            key={'home'}
-            className={`sidebar-item${activeScreen ==='home' ? " is-active" : ""}`}
-            onClick={() => onNavigate('home')}
-          >
-            首頁
-          </button>
+          {!isMember && (
+            <button
+              key={'home'}
+              className={`sidebar-item${activeScreen ==='home' ? " is-active" : ""}`}
+              onClick={() => onNavigate('home')}
+            >
+              首頁
+            </button>
+          )}
           <div className="sidebar-label">活動</div>
           <nav className="sidebar-section">
             {NAV_ITEMS.map((item) => (
