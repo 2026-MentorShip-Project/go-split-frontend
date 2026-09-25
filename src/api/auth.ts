@@ -33,6 +33,7 @@ export interface JoinByCodeResponse {
 export async function logout(): Promise<void> {
   await apiFetch(`${BASE_URL}/auth/logout`, { method: "POST" });
   sessionStorage.removeItem('userName');
+  localStorage.removeItem('guest_session');
 }
 
 export async function joinByCode(req: JoinByCodeRequest): Promise<JoinByCodeResponse> {

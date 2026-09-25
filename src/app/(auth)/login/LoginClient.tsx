@@ -15,6 +15,7 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
   const join2 = useStore((s) => s.join2);
   const setJoin2 = useStore((s) => s.setJoin2);
   const setFirstJoin = useStore((s) => s.setFirstJoin);
+  const setGuest = useStore((s) => s.setGuest);
   const setUserName = useStore((s) => s.setUserName);
 
   const [showInvite, setShowInvite] = useState(false);
@@ -32,6 +33,8 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
 
     try {
       const user = await googleLogin(idToken);
+      localStorage.removeItem("guest_session");
+      setGuest(false);
       setUserName(user.name);
       router.push('/dashboard');
     } catch (error) {

@@ -39,20 +39,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
 
   useEffect(() => {
-    if (pathname !== ROUTES.HOME && pathname !== ROUTES.EVENTS.CREATE) return;
+    if (!isGuest) return;
+    if (
+      pathname !== ROUTES.HOME &&
+      pathname !== ROUTES.EVENTS.CREATE &&
+      pathname !== ROUTES.EVENTS.INVITE
+    ) return;
 
-    let guestEventId = cur;
-    if (!guestEventId && typeof window !== "undefined") {
+    const guestEventId = (() => {
+      if (cur > 0) return cur;
+      if (typeof window === "undefined") return 0;
       try {
-        guestEventId = JSON.parse(localStorage.getItem("guest_session") || "{}").event_id || 0;
+        const raw = localStorage.getItem("guest_session");
+        const parsed = raw ? JSON.parse(raw) : null;
+        const id = Number(parsed?.event_id ?? 0);
+        return Number.isFinite(id) && id > 0 ? id : 0;
       } catch {
-        guestEventId = 0;
+        return 0;
       }
-    }
-
-    if (isGuest) {
-      router.replace(guestEventId ? ROUTES.EVENTS.DETAIL(guestEventId) : ROUTES.LOGIN);
-    }
+    })();
+    const target = guestEventId ? ROUTES.EVENTS.DETAIL(guestEventId) : ROUTES.LOGIN;
+    if (pathname !== target) router.replace(target);
   }, [cur, isGuest, pathname, router]);
 
   useEffect(() => {
