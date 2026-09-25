@@ -19,6 +19,7 @@ export default function InvitePage() {
   const evName = evData?.name || "";
   const evDate = evData ? fmtIsoDatetime(evData.starts_at) : "";
   const evPlace = evData?.place || "";
+  const hostName = evData?.members.find((member) => member.role === "host")?.display || "主辦人";
 
   return (
     <div
@@ -44,7 +45,7 @@ export default function InvitePage() {
         >
           <div className="flex between fs14">
             <span>主辦人</span>
-            <span className="fw500">小凱</span>
+            <span className="fw500">{hostName}</span>
           </div>
           <div className="flex between fs14">
             <span>你的身份</span>
