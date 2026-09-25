@@ -4,7 +4,7 @@ interface SidebarProps {
   onNavigate: (screen: string) => void;
   activeScreen: string;
   isHost: boolean;
-  isMember: boolean;
+  isGuest: boolean;
   showNav: boolean;
 }
 
@@ -22,7 +22,7 @@ export default function Sidebar({
   onNavigate,
   activeScreen,
   isHost,
-  isMember,
+  isGuest,
   showNav,
 }: SidebarProps) {
   return (
@@ -34,7 +34,7 @@ export default function Sidebar({
 
       {showNav && (
         <>
-          {!isMember && (
+          {!isGuest && (
             <button
               key={'home'}
               className={`sidebar-item${activeScreen ==='home' ? " is-active" : ""}`}

@@ -35,7 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
   const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
-  const isMember = guest || role === "member" || hasGuestSession;
+  const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
 
   useEffect(() => {
@@ -50,10 +50,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     }
 
-    if (isMember) {
+    if (isGuest) {
       router.replace(guestEventId ? ROUTES.EVENTS.DETAIL(guestEventId) : ROUTES.LOGIN);
     }
-  }, [cur, isMember, pathname, router]);
+  }, [cur, isGuest, pathname, router]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -102,7 +102,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onNavigate={handleNavigate}
               activeScreen={activeScreen}
               isHost={isHost}
-              isMember={isMember}
+              isGuest={isGuest}
               showNav={showNav}
             />
           )}
@@ -116,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onNavigate={handleNavigate}
             activeScreen={activeScreen}
             isHost={isHost}
-            isMember={isMember}
+            isGuest={isGuest}
           />
         )}
       </div>

@@ -17,7 +17,7 @@ export default function AppShell({ children }: AppShellProps) {
   const role = useStore((s) => s.role);
 
   const isHost = role === "host" || role === "co";
-  const isMember = guest || role === "member";
+  const isGuest = guest;
 
   const handleNavigate = useCallback((_screen: string) => {
     closeMenu();
@@ -31,7 +31,7 @@ export default function AppShell({ children }: AppShellProps) {
             onNavigate={handleNavigate}
             activeScreen=""
             isHost={isHost}
-            isMember={isMember}
+            isGuest={isGuest}
             showNav
           />
           <div className="app-scroll">{children}</div>
@@ -45,7 +45,7 @@ export default function AppShell({ children }: AppShellProps) {
         onNavigate={handleNavigate}
         activeScreen=""
         isHost={isHost}
-        isMember={isMember}
+        isGuest={isGuest}
       />
     </div>
   );
