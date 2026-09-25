@@ -20,6 +20,7 @@ export default function InvitePage() {
   const evDate = evData ? fmtIsoDatetime(evData.starts_at) : "";
   const evPlace = evData?.place || "";
   const hostName = evData?.members.find((member) => member.role === "host")?.display || "主辦人";
+  const personName = evData?.members.find((member) => member.you)?.display || "參與者";
 
   return (
     <div
@@ -49,7 +50,7 @@ export default function InvitePage() {
           </div>
           <div className="flex between fs14">
             <span>你的身份</span>
-            <span className="fw500">參與者</span>
+            <span className="fw500">{personName}</span>
           </div>
         </div>
       </div>
