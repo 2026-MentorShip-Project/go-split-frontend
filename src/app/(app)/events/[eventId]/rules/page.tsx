@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Chip from "@/components/ui/Chip";
@@ -10,9 +10,15 @@ import {
   EditIcon, CheckIcon, PlusIcon, TrashIcon, XIcon,
   ChevDownIcon, ChevRightIcon,
 } from "@/components/icons";
-import { effLabel, restLabel as calcRestLabel, matchCount, ruleTagUsed } from "@/lib/calculations";
+import { effLabel, restLabel as calcRestLabel, matchCount } from "@/lib/calculations";
 import TagPicker from "@/components/features/TagPicker";
+import RuleGroupEditor from "@/components/features/RuleGroupEditor";
+import { duplicateGroups, itemTagUsage, ruleProblem, validWeight } from "@/lib/rules";
+import Dialog from "@/components/ui/Dialog";
+import type { Rule, RuleGroup } from "@/lib/types";
+import { roleFromApi } from "@/api/mombers";
 import {
+  getEvent,
   getItemTags, addItemTag, deleteItemTag,
   getCondTags, addCondTag, deleteCondTag,
   getRules, createRule, updateRuleApi, deleteRuleApi,
@@ -31,7 +37,7 @@ export default function RulesPage() {
   const condTags = useStore((s) => s.condTags);
   const setCondTags = useStore((s) => s.setCondTags);
   const members = useStore((s) => s.members);
-  const itemsBy = useStore((s) => s.itemsBy);
+  const setMembers = useStore((s) => s.setMembers);
   const ruleEdit = useStore((s) => s.ruleEdit);
   const setRuleEdit = useStore((s) => s.setRuleEdit);
   const updateRule = useStore((s) => s.updateRule);
@@ -39,6 +45,20 @@ export default function RulesPage() {
   const setRulePick = useStore((s) => s.setRulePick);
   const ruleTagQuery = useStore((s) => s.ruleTagQuery);
   const setRuleTagQuery = useStore((s) => s.setRuleTagQuery);
+  const ruleCondQuery = useStore((s) => s.ruleCondQuery);
+  const setRuleCondQuery = useStore((s) => s.setRuleCondQuery);
+  const condPick = useStore((s) => s.condPick);
+  const setCondPick = useStore((s) => s.setCondPick);
+  const effPick = useStore((s) => s.effPick);
+  const setEffPick = useStore((s) => s.setEffPick);
+  const dragGroup = useStore((s) => s.dragGroup);
+  const setDragGroup = useStore((s) => s.setDragGroup);
+  const ruleError = useStore((s) => s.ruleError);
+  const setRuleError = useStore((s) => s.setRuleError);
+  const resplitAsk = useStore((s) => s.resplitAsk);
+  const setResplitAsk = useStore((s) => s.setResplitAsk);
+
+  const [usage, setUsage] = useState<Record<string, number>>({});
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -50,13 +70,26 @@ export default function RulesPage() {
   const secEdit = useStore((s) => s.secEdit);
   const setSecEdit = useStore((s) => s.setSecEdit);
 
-  const canEditRules = role === "host" || role === "co";
-  const items = itemsBy[eventId] || [];
+  const canEditRules = role === "host";
 
   useEffect(() => {
     if (!eventId) return;
     void Promise.all([getItemTags(eventId), getCondTags(eventId), getRules(eventId)])
       .then(([it, ct, rl]) => { setItemTags(it); setCondTags(ct); setRules(rl); })
+      .catch(() => {});
+    void getEvent(eventId)
+      .then((ev) => {
+        setMembers((ev.members ?? []).map((m) => ({
+          id: String(m.id),
+          name: m.display,
+          role: roleFromApi(m.role),
+          tags: m.tags,
+          login: "",
+          guest: m.guest,
+          you: m.you,
+        })));
+        setUsage(itemTagUsage(ev.items));
+      })
       .catch(() => {});
   }, [eventId]);
 
@@ -165,9 +198,62 @@ export default function RulesPage() {
     setTagEdit({ kind: "cond", i: condTags.length, value: "", isNew: true });
   };
 
-  const handleSaveRule = async (i: number) => {
-    setRuleEdit(null);
+  const updateGroup = (i: number, j: number, patch: Partial<RuleGroup>) =>
+    updateRule(i, {
+      groups: rules[i].groups.map((g, k) => (k === j ? { ...g, ...patch } : g)),
+    });
+
+  const toggleCond = (i: number, j: number, cond: string) => {
+    const conds = rules[i].groups[j].conds ?? [];
+    updateGroup(i, j, {
+      conds: conds.includes(cond) ? conds.filter((c) => c !== cond) : [...conds, cond],
+    });
+  };
+
+  const addGroup = (i: number) =>
+    updateRule(i, { groups: [...rules[i].groups, { conds: [], mode: "exclude", wt: "" }] });
+
+  const removeGroup = (i: number, j: number) =>
+    updateRule(i, { groups: rules[i].groups.filter((_, k) => k !== j) });
+
+  // Order decides which group wins, so dragging is how a host expresses priority.
+  const moveGroup = (i: number, from: number, to: number) => {
+    if (from === to) return;
+    const groups = [...rules[i].groups];
+    const [moved] = groups.splice(from, 1);
+    groups.splice(to, 0, moved);
+    updateRule(i, { groups });
+  };
+
+  const restMode = (rule: Rule) => rule.rest?.mode ?? "weight";
+
+  const closePickers = () => {
+    setCondPick(null);
+    setEffPick(null);
+  };
+
+  const handleCancelRule = async (i: number) => {
     const rule = rules[i];
+    setRuleEdit(null);
+    setRuleError(null);
+    closePickers();
+    if (!rule.id) {
+      setRules(rules.filter((_, j) => j !== i));
+      return;
+    }
+    setRules(await getRules(eventId).catch(() => rules));
+  };
+
+  const handleSaveRule = async (i: number) => {
+    const rule = rules[i];
+    const problem = ruleProblem(rule);
+    if (problem) {
+      setRuleError(problem);
+      return;
+    }
+    setRuleError(null);
+    setRuleEdit(null);
+    closePickers();
     try {
       if (rule.id) {
         const updated = await updateRuleApi(eventId, rule.id, {
@@ -176,7 +262,6 @@ export default function RulesPage() {
         });
         setRules(rules.map((r, j) => (j === i ? updated : r)));
       } else {
-        if (!rule.tag.trim()) return;
         const created = await createRule(eventId, {
           tag: rule.tag,
           groups: rule.groups,
@@ -184,7 +269,8 @@ export default function RulesPage() {
         });
         setRules(rules.map((r, j) => (j === i ? created : r)));
       }
-    } catch {
+    } catch (e) {
+      setRuleError(e instanceof Error ? e.message : "儲存分攤規則失敗");
       setRules(await getRules(eventId).catch(() => rules));
     }
   };
@@ -213,6 +299,36 @@ export default function RulesPage() {
         <ErrorBanner
           message={tagUsedAsk.text}
           onClose={() => setTagUsedAsk(null)}
+        />
+      )}
+
+      {ruleError && (
+        <ErrorBanner message={ruleError} onClose={() => setRuleError(null)} />
+      )}
+
+      {resplitAsk && (
+        <Dialog
+          title="修改會重算已記錄的金額"
+          body={`「${resplitAsk.tag}」已有 ${resplitAsk.count} 筆支出。分攤結果在結清前都會即時重算，改了規則，這些支出的金額和成員看到的分攤都會跟著改變。`}
+          danger
+          onClose={() => setResplitAsk(null)}
+          actions={
+            <>
+              <button className="btn-pill" onClick={() => setResplitAsk(null)}>
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => {
+                  setRuleEdit(resplitAsk.index);
+                  setResplitAsk(null);
+                }}
+              >
+                仍要修改
+              </button>
+            </>
+          }
         />
       )}
 
@@ -422,7 +538,11 @@ export default function RulesPage() {
               variant="sm"
               style={{ border: "1px solid #B9C6C3" }}
               title="新增規則"
-              onClick={() => setRules([...rules, { tag: "", groups: [{ conds: [], mode: "exclude", wt: "" }] }])}
+              onClick={() => {
+                setRules([...rules, { tag: "", groups: [{ conds: [], mode: "exclude", wt: "" }] }]);
+                setRuleEdit(rules.length);
+                setRuleError(null);
+              }}
             >
               <PlusIcon size={19} />
             </IconButton>
@@ -449,7 +569,8 @@ export default function RulesPage() {
       {ruleOpen && ruleViewOn && (
         <div className="flex-col gap-16 mt-12">
           {rules.map((r, i) => {
-            const used = ruleTagUsed(r.tag, items);
+            const usedCount = usage[r.tag] ?? 0;
+            const used = usedCount > 0;
             return (
               <div key={i} className="card" style={{ padding: "14px 16px", marginLeft: 40, marginRight: 40 }}>
                 <div className="flex items-center between gap-10">
@@ -490,8 +611,10 @@ export default function RulesPage() {
       {ruleOpen && ruleEditOn && (
         <div className="flex-col gap-12 mt-12">
           {rules.map((r, i) => {
-            const used = ruleTagUsed(r.tag, items);
+            const usedCount = usage[r.tag] ?? 0;
+            const used = usedCount > 0;
             const isEditing = ruleEdit === i;
+            const dups = duplicateGroups(r.groups ?? []);
             return (
               <div key={i} className="card" style={{ padding: "16px 20px", marginLeft: 40, marginRight: 40 }}>
                 <div className="flex items-center between gap-12">
@@ -518,26 +641,34 @@ export default function RulesPage() {
                     </span>
                   )}
                   {used && <span className="pill-neutral">已被使用</span>}
-                  {!isEditing && !used && (
+                  {!isEditing && (
                     <span className="flex gap-8">
-                      <IconButton variant="sm" title="刪除" onClick={async () => {
-                        const removed = rules[i];
-                        setRules(rules.filter((_, j) => j !== i));
-                        if (removed.id) {
-                          try { await deleteRuleApi(eventId, removed.id); }
-                          catch { setRules(await getRules(eventId).catch(() => rules)); }
-                        }
-                      }}>
-                        <TrashIcon size={14} />
-                      </IconButton>
-                      <IconButton variant="sm-fill" title="編輯" onClick={() => setRuleEdit(i)}>
+                      {!used && (
+                        <IconButton variant="sm" title="刪除" onClick={async () => {
+                          const removed = rules[i];
+                          setRules(rules.filter((_, j) => j !== i));
+                          if (removed.id) {
+                            try { await deleteRuleApi(eventId, removed.id); }
+                            catch { setRules(await getRules(eventId).catch(() => rules)); }
+                          }
+                        }}>
+                          <TrashIcon size={14} />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        variant="sm-fill"
+                        title="編輯"
+                        onClick={() => (used
+                          ? setResplitAsk({ index: i, tag: r.tag, count: usedCount })
+                          : setRuleEdit(i))}
+                      >
                         <EditIcon size={14} />
                       </IconButton>
                     </span>
                   )}
                   {isEditing && (
                     <span className="flex gap-8">
-                      <IconButton variant="sm" title="取消" onClick={() => setRuleEdit(null)}>
+                      <IconButton variant="sm" title="取消" onClick={() => void handleCancelRule(i)}>
                         <XIcon size={14} />
                       </IconButton>
                       <IconButton variant="sm-fill" title="儲存" onClick={() => void handleSaveRule(i)}>
@@ -547,27 +678,155 @@ export default function RulesPage() {
                   )}
                 </div>
                 <div className="mt-14" style={{ paddingTop: 12, borderTop: "1px solid var(--ln-control)" }}>
-                  <div className="fs14 fw500">分攤規則</div>
-                </div>
-                <div className="flex-col gap-10 mt-10">
-                  {r.groups.map((g, j) => (
-                    <div key={j} className="flex items-center gap-10">
-                      <span className="grow flex wrap items-center gap-6">
-                        {g.conds.map((c) => (
-                          <Chip key={c} label={c} kind="cond" />
-                        ))}
-                        <span className="fs12 text3">{matchCount(g.conds, members)} 人</span>
-                      </span>
-                      <span className="fs14 fw500" style={{ flex: "none" }}>{effLabel(g)}</span>
+                  <div className="flex items-center between gap-10">
+                    <span className="fs14 fw500">分攤規則</span>
+                    {isEditing && (
+                      <IconButton variant="sm" title="新增群組" onClick={() => addGroup(i)}>
+                        <PlusIcon size={16} />
+                      </IconButton>
+                    )}
+                  </div>
+                  {isEditing && (
+                    <div className="fs12 text3 mt-6" style={{ lineHeight: 1.7 }}>
+                      由上往下比對，第一個符合的群組生效；群組內的條件需全部符合。可拖曳調整順序。
                     </div>
-                  ))}
+                  )}
                 </div>
+
+                {isEditing ? (
+                  <div className="flex-col gap-10 mt-10">
+                    {r.groups.map((g, j) => {
+                      const key = `${i}:${j}`;
+                      const query = ruleCondQuery.toLowerCase();
+                      return (
+                        <RuleGroupEditor
+                          key={j}
+                          groupNo={j + 1}
+                          chips={(g.conds ?? []).map((c) => ({
+                            label: c,
+                            onRemove: () => toggleCond(i, j, c),
+                          }))}
+                          count={`${matchCount(g.conds, members)} 人`}
+                          dup={dups.has(j)}
+                          queryVal={ruleCondQuery}
+                          onSetQuery={(e) => setRuleCondQuery(e.target.value)}
+                          onOpenPick={() => { setRuleCondQuery(""); setCondPick(key); }}
+                          pickOpen={condPick === key}
+                          pickRows={condTags
+                            .filter((c) => !query || c.toLowerCase().includes(query))
+                            .map((c) => ({
+                              label: c,
+                              sel: (g.conds ?? []).includes(c),
+                              onToggle: () => toggleCond(i, j, c),
+                            }))}
+                          pickEmpty={condTags.length === 0}
+                          effLabel={effLabel(g)}
+                          effOpen={effPick === key}
+                          onOpenEff={() => setEffPick(key)}
+                          modeOpts={[
+                            {
+                              label: "權重", mark: "×", sel: g.mode === "weight",
+                              onPick: () => { updateGroup(i, j, { mode: "weight", wt: g.wt || "1" }); setEffPick(null); },
+                            },
+                            {
+                              label: "不計入", mark: "—", sel: g.mode === "exclude",
+                              onPick: () => { updateGroup(i, j, { mode: "exclude" }); setEffPick(null); },
+                            },
+                          ]}
+                          isWeight={g.mode === "weight"}
+                          weightVal={g.wt}
+                          weightInvalid={g.mode === "weight" && !validWeight(g.wt)}
+                          onSetWeight={(e) => updateGroup(i, j, { wt: e.target.value })}
+                          onDelete={() => removeGroup(i, j)}
+                          onClosePick={closePickers}
+                          opacity={dragGroup === key ? 0.4 : 1}
+                          onDragStart={() => setDragGroup(key)}
+                          onDragEnd={() => setDragGroup(null)}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            const [fromRule, fromGroup] = (dragGroup ?? "").split(":");
+                            if (fromRule === String(i)) moveGroup(i, Number(fromGroup), j);
+                            setDragGroup(null);
+                          }}
+                        />
+                      );
+                    })}
+                    {r.groups.length === 0 && (
+                      <div className="fs12 text3">尚未設定群組，所有人皆依「其他人員」分攤。</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex-col gap-10 mt-10">
+                    {r.groups.map((g, j) => (
+                      <div key={j} className="flex items-center gap-10">
+                        <span className="grow flex wrap items-center gap-6">
+                          {g.conds.map((c) => (
+                            <Chip key={c} label={c} kind="cond" />
+                          ))}
+                          <span className="fs12 text3">{matchCount(g.conds, members)} 人</span>
+                        </span>
+                        <span className="fs14 fw500" style={{ flex: "none" }}>{effLabel(g)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div
                   className="flex items-center between gap-10 mt-14"
                   style={{ paddingTop: 12, borderTop: "1px solid var(--ln-control)" }}
                 >
                   <span className="grow fs12 text2">其他人員</span>
-                  <span className="fs14 fw500">{calcRestLabel(r)}</span>
+                  {isEditing ? (
+                    <span className="flex items-center gap-8" style={{ flex: "none" }}>
+                      <div className="combo">
+                        <button
+                          type="button"
+                          className="combo-trigger-pill"
+                          onClick={() => setEffPick(`rest:${i}`)}
+                        >
+                          {restMode(r) === "exclude" ? "不計入" : "權重"}
+                        </button>
+                        {effPick === `rest:${i}` && (
+                          <>
+                            <div className="picker-backdrop" onClick={closePickers} />
+                            <div className="picker-panel">
+                              <button
+                                type="button"
+                                className={`picker-row${restMode(r) === "weight" ? " is-sel" : ""}`}
+                                onClick={() => {
+                                  updateRule(i, { rest: { mode: "weight", wt: r.rest?.wt || "1" } });
+                                  setEffPick(null);
+                                }}
+                              >
+                                <span>× 權重</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`picker-row${restMode(r) === "exclude" ? " is-sel" : ""}`}
+                                onClick={() => {
+                                  updateRule(i, { rest: { mode: "exclude", wt: "" } });
+                                  setEffPick(null);
+                                }}
+                              >
+                                <span>— 不計入</span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      {restMode(r) === "weight" && (
+                        <input
+                          className={`input input--sm${validWeight(r.rest?.wt) ? "" : " input--err"}`}
+                          style={{ width: 70, textAlign: "right" }}
+                          value={r.rest?.wt ?? ""}
+                          placeholder="1"
+                          onChange={(e) => updateRule(i, { rest: { mode: "weight", wt: e.target.value } })}
+                        />
+                      )}
+                    </span>
+                  ) : (
+                    <span className="fs14 fw500">{calcRestLabel(r)}</span>
+                  )}
                 </div>
               </div>
             );

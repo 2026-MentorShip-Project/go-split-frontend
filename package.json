@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "sync-engine": "node scripts/sync-engine.mjs",
+    "predev": "npm run sync-engine",
     "dev": "next dev",
+    "prebuild": "npm run sync-engine",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@go-split/engine": "^1.1.1",
     "@react-oauth/google": "^0.13.5",
     "next": "16.3.4",
     "react": "19.2.8",
