@@ -20,11 +20,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { menuOpen, menuIn, role, closeMenu, setRole } = useStore(
+  const { menuOpen, menuIn, guest, role, cur, closeMenu, setRole } = useStore(
     useShallow((s) => ({
       menuOpen: s.menuOpen,
       menuIn: s.menuIn,
+      guest: s.guest,
       role: s.role,
+      cur: s.cur,
       closeMenu: s.closeMenu,
       setRole: s.setRole,
     }))
@@ -32,7 +34,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
+  const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
+  const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
+
+  useEffect(() => {
+    if (!isGuest) return;
+    if (
+      pathname !== ROUTES.HOME &&
+      pathname !== ROUTES.EVENTS.CREATE &&
+      pathname !== ROUTES.EVENTS.INVITE
+    ) return;
+
+    const guestEventId = (() => {
+      if (cur > 0) return cur;
+      if (typeof window === "undefined") return 0;
+      try {
+        const raw = localStorage.getItem("guest_session");
+        const parsed = raw ? JSON.parse(raw) : null;
+        const id = Number(parsed?.event_id ?? 0);
+        return Number.isFinite(id) && id > 0 ? id : 0;
+      } catch {
+        return 0;
+      }
+    })();
+    const target = guestEventId ? ROUTES.EVENTS.DETAIL(guestEventId) : ROUTES.LOGIN;
+    if (pathname !== target) router.replace(target);
+  }, [cur, isGuest, pathname, router]);
 
   useEffect(() => {
     if (!eventId) return;
@@ -81,6 +109,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onNavigate={handleNavigate}
               activeScreen={activeScreen}
               isHost={isHost}
+              isGuest={isGuest}
               showNav={showNav}
             />
           )}
@@ -94,6 +123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             onNavigate={handleNavigate}
             activeScreen={activeScreen}
             isHost={isHost}
+            isGuest={isGuest}
           />
         )}
       </div>
