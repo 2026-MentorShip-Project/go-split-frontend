@@ -76,13 +76,6 @@ export function itemTotal(expense: ExpenseItem): number {
   }, 0);
 }
 
-export function ruleTagUsed(tag: string, items: ExpenseItem[]): boolean {
-  if (!tag) return false;
-  return items.some(expense =>
-    expense.details.some(detail => (detail.tags || []).includes(tag))
-  );
-}
-
 /**
  * Counts people a condition set applies to. An empty set deliberately counts
  * nobody: the engine would match everyone, but the backend rejects empty sets,

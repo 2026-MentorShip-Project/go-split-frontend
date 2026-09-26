@@ -49,3 +49,20 @@ export function ruleProblem(rule: Rule): string | null {
   }
   return null;
 }
+
+/**
+ * Expense details per item tag, counted the way the backend counts them — one
+ * per detail, not per item. Shares recompute live until settlement, so this is
+ * how many amounts a rule edit would silently change.
+ */
+export function itemTagUsage(
+  items: { details?: { tag?: string }[] }[] | undefined,
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const item of items ?? []) {
+    for (const detail of item.details ?? []) {
+      if (detail.tag) counts[detail.tag] = (counts[detail.tag] ?? 0) + 1;
+    }
+  }
+  return counts;
+}

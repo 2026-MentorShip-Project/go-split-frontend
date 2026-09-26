@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Chip from "@/components/ui/Chip";
@@ -10,13 +10,15 @@ import {
   EditIcon, CheckIcon, PlusIcon, TrashIcon, XIcon,
   ChevDownIcon, ChevRightIcon,
 } from "@/components/icons";
-import { effLabel, restLabel as calcRestLabel, matchCount, ruleTagUsed } from "@/lib/calculations";
+import { effLabel, restLabel as calcRestLabel, matchCount } from "@/lib/calculations";
 import TagPicker from "@/components/features/TagPicker";
 import RuleGroupEditor from "@/components/features/RuleGroupEditor";
-import { duplicateGroups, ruleProblem, validWeight } from "@/lib/rules";
+import { duplicateGroups, itemTagUsage, ruleProblem, validWeight } from "@/lib/rules";
+import Dialog from "@/components/ui/Dialog";
 import type { Rule, RuleGroup } from "@/lib/types";
-import { getEventMembers, roleFromApi } from "@/api/mombers";
+import { roleFromApi } from "@/api/mombers";
 import {
+  getEvent,
   getItemTags, addItemTag, deleteItemTag,
   getCondTags, addCondTag, deleteCondTag,
   getRules, createRule, updateRuleApi, deleteRuleApi,
@@ -36,7 +38,6 @@ export default function RulesPage() {
   const setCondTags = useStore((s) => s.setCondTags);
   const members = useStore((s) => s.members);
   const setMembers = useStore((s) => s.setMembers);
-  const itemsBy = useStore((s) => s.itemsBy);
   const ruleEdit = useStore((s) => s.ruleEdit);
   const setRuleEdit = useStore((s) => s.setRuleEdit);
   const updateRule = useStore((s) => s.updateRule);
@@ -54,6 +55,10 @@ export default function RulesPage() {
   const setDragGroup = useStore((s) => s.setDragGroup);
   const ruleError = useStore((s) => s.ruleError);
   const setRuleError = useStore((s) => s.setRuleError);
+  const resplitAsk = useStore((s) => s.resplitAsk);
+  const setResplitAsk = useStore((s) => s.setResplitAsk);
+
+  const [usage, setUsage] = useState<Record<string, number>>({});
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -66,23 +71,25 @@ export default function RulesPage() {
   const setSecEdit = useStore((s) => s.setSecEdit);
 
   const canEditRules = role === "host";
-  const items = itemsBy[eventId] || [];
 
   useEffect(() => {
     if (!eventId) return;
     void Promise.all([getItemTags(eventId), getCondTags(eventId), getRules(eventId)])
       .then(([it, ct, rl]) => { setItemTags(it); setCondTags(ct); setRules(rl); })
       .catch(() => {});
-    void getEventMembers(eventId)
-      .then((list) => setMembers(list.map((m) => ({
-        id: String(m.id),
-        name: m.display,
-        role: roleFromApi(m.role),
-        tags: m.tags,
-        login: "",
-        guest: m.guest,
-        you: m.you,
-      }))))
+    void getEvent(eventId)
+      .then((ev) => {
+        setMembers((ev.members ?? []).map((m) => ({
+          id: String(m.id),
+          name: m.display,
+          role: roleFromApi(m.role),
+          tags: m.tags,
+          login: "",
+          guest: m.guest,
+          you: m.you,
+        })));
+        setUsage(itemTagUsage(ev.items));
+      })
       .catch(() => {});
   }, [eventId]);
 
@@ -297,6 +304,32 @@ export default function RulesPage() {
 
       {ruleError && (
         <ErrorBanner message={ruleError} onClose={() => setRuleError(null)} />
+      )}
+
+      {resplitAsk && (
+        <Dialog
+          title="修改會重算已記錄的金額"
+          body={`「${resplitAsk.tag}」已有 ${resplitAsk.count} 筆支出。分攤結果在結清前都會即時重算，改了規則，這些支出的金額和成員看到的分攤都會跟著改變。`}
+          danger
+          onClose={() => setResplitAsk(null)}
+          actions={
+            <>
+              <button className="btn-pill" onClick={() => setResplitAsk(null)}>
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => {
+                  setRuleEdit(resplitAsk.index);
+                  setResplitAsk(null);
+                }}
+              >
+                仍要修改
+              </button>
+            </>
+          }
+        />
       )}
 
       {/* Item Tags Section */}
@@ -536,7 +569,8 @@ export default function RulesPage() {
       {ruleOpen && ruleViewOn && (
         <div className="flex-col gap-16 mt-12">
           {rules.map((r, i) => {
-            const used = ruleTagUsed(r.tag, items);
+            const usedCount = usage[r.tag] ?? 0;
+            const used = usedCount > 0;
             return (
               <div key={i} className="card" style={{ padding: "14px 16px", marginLeft: 40, marginRight: 40 }}>
                 <div className="flex items-center between gap-10">
@@ -577,7 +611,8 @@ export default function RulesPage() {
       {ruleOpen && ruleEditOn && (
         <div className="flex-col gap-12 mt-12">
           {rules.map((r, i) => {
-            const used = ruleTagUsed(r.tag, items);
+            const usedCount = usage[r.tag] ?? 0;
+            const used = usedCount > 0;
             const isEditing = ruleEdit === i;
             const dups = duplicateGroups(r.groups ?? []);
             return (
@@ -606,19 +641,27 @@ export default function RulesPage() {
                     </span>
                   )}
                   {used && <span className="pill-neutral">已被使用</span>}
-                  {!isEditing && !used && (
+                  {!isEditing && (
                     <span className="flex gap-8">
-                      <IconButton variant="sm" title="刪除" onClick={async () => {
-                        const removed = rules[i];
-                        setRules(rules.filter((_, j) => j !== i));
-                        if (removed.id) {
-                          try { await deleteRuleApi(eventId, removed.id); }
-                          catch { setRules(await getRules(eventId).catch(() => rules)); }
-                        }
-                      }}>
-                        <TrashIcon size={14} />
-                      </IconButton>
-                      <IconButton variant="sm-fill" title="編輯" onClick={() => setRuleEdit(i)}>
+                      {!used && (
+                        <IconButton variant="sm" title="刪除" onClick={async () => {
+                          const removed = rules[i];
+                          setRules(rules.filter((_, j) => j !== i));
+                          if (removed.id) {
+                            try { await deleteRuleApi(eventId, removed.id); }
+                            catch { setRules(await getRules(eventId).catch(() => rules)); }
+                          }
+                        }}>
+                          <TrashIcon size={14} />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        variant="sm-fill"
+                        title="編輯"
+                        onClick={() => (used
+                          ? setResplitAsk({ index: i, tag: r.tag, count: usedCount })
+                          : setRuleEdit(i))}
+                      >
                         <EditIcon size={14} />
                       </IconButton>
                     </span>
