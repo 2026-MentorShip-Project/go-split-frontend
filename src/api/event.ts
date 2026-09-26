@@ -293,13 +293,50 @@ export async function archiveEvent(eventId: number): Promise<void> {
 
 // Rules
 
+interface ApiRuleGroup {
+  conds?: string[];
+  mode?: "weight" | "exclude";
+  weight?: number;
+}
+
+/** The API carries a numeric `weight`; the UI binds a `wt` text field. */
+function groupFromApi(group: ApiRuleGroup): RuleGroup {
+  return {
+    conds: group.conds ?? [],
+    mode: group.mode === "exclude" ? "exclude" : "weight",
+    wt: group.weight === undefined ? "" : String(group.weight),
+  };
+}
+
+function groupToApi(group: RuleGroup): ApiRuleGroup {
+  const conds = group.conds ?? [];
+  if (group.mode === "exclude") return { conds, mode: "exclude" };
+  // An omitted weight lets the server apply its own default of 1.
+  const weight = Number((group.wt ?? "").trim());
+  return (group.wt ?? "").trim() === "" || !Number.isFinite(weight)
+    ? { conds, mode: "weight" }
+    : { conds, mode: "weight", weight };
+}
+
+function restFromApi(rest: ApiRuleGroup | undefined | null): Rule["rest"] {
+  if (!rest) return undefined;
+  const { mode, wt } = groupFromApi(rest);
+  return { mode, wt };
+}
+
+function restToApi(rest: Rule["rest"] | null | undefined): ApiRuleGroup | null {
+  if (!rest) return null;
+  const { mode, weight } = groupToApi({ conds: [], ...rest });
+  return mode === "exclude" ? { mode } : { mode, ...(weight === undefined ? {} : { weight }) };
+}
+
 function mapRuleFromApi(dto: Record<string, unknown>): Rule {
   return {
     id: dto.id as number,
     tag: dto.item_tag as string,
     ordinal: dto.ordinal as number | undefined,
-    groups: (dto.groups as RuleGroup[]) ?? [],
-    rest: (dto.rest as Rule["rest"]) ?? undefined,
+    groups: ((dto.groups as ApiRuleGroup[]) ?? []).map(groupFromApi),
+    rest: restFromApi(dto.rest as ApiRuleGroup | undefined),
   };
 }
 
@@ -319,8 +356,8 @@ export async function createRule(
 ): Promise<Rule> {
   const res = await apiPost(`${BASE_URL}/events/${eventId}/rules`, {
     item_tag: rule.tag,
-    groups: rule.groups,
-    rest: rule.rest ?? null,
+    groups: (rule.groups ?? []).map(groupToApi),
+    rest: restToApi(rule.rest),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -334,7 +371,10 @@ export async function updateRuleApi(
   ruleId: number,
   body: { groups?: RuleGroup[]; rest?: Rule["rest"] | null },
 ): Promise<Rule> {
-  const res = await apiPatch(`${BASE_URL}/events/${eventId}/rules/${ruleId}`, body);
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}/rules/${ruleId}`, {
+    ...(body.groups === undefined ? {} : { groups: body.groups.map(groupToApi) }),
+    ...(body.rest === undefined ? {} : { rest: restToApi(body.rest) }),
+  });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? "更新分攤規則失敗");
