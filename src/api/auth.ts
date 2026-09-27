@@ -17,11 +17,28 @@ export async function googleLogin(idToken: string): Promise<GoogleAuthResponse> 
   return res.json();
 }
 
+export interface InviteInfo {
+  event_id: number;
+  name: string;
+  cond_tags: string[];
+}
+
+export async function getInvite(code: string): Promise<InviteInfo> {
+  const res = await apiFetch(`${BASE_URL}/auth/invite/${encodeURIComponent(code)}`);
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("找不到此邀請碼，請確認後再試");
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "無法取得活動資訊");
+  }
+  return res.json();
+}
+
 export interface JoinByCodeRequest {
   code: string;
   email: string;
-  name?: string;
+  name: string;
   phone: string;
+  cond_tags?: string[];
 }
 
 export interface JoinByCodeResponse {
