@@ -41,7 +41,7 @@ export default function JoinFormPage() {
       // Anyone already signed in joins through the session-authenticated route.
       const signedIn = Boolean(sessionStorage.getItem("userName"));
       const eventId = signedIn
-        ? (await joinEvent({ code, name: join.name })).event_id
+        ? (await joinEvent({ code, name: join.name, cond_tags: join.conds, note: join.note })).event_id
         : await joinAsGuest();
       setCur(eventId);
       router.push(`/events/${eventId}`);
@@ -59,6 +59,7 @@ export default function JoinFormPage() {
       name: join.name,
       phone: join2.phone,
       cond_tags: join.conds.length > 0 ? join.conds : undefined,
+      note: join.note,
     });
     localStorage.setItem("guest_session", JSON.stringify(result));
     setGuest(true);

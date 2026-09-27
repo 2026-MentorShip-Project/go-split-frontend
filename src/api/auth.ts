@@ -39,6 +39,7 @@ export interface JoinByCodeRequest {
   name: string;
   phone: string;
   cond_tags?: string[];
+  note?: string;
 }
 
 export interface JoinByCodeResponse {
