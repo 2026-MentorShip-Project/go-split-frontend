@@ -97,6 +97,18 @@ export interface EventDetail {
   items: EventDetailItem[];
 }
 
+// Name and place only: the API answers 409 on a template field, fixed at creation.
+export async function updateEventMetadata(
+  eventId: number,
+  body: { name: string; place: string },
+): Promise<void> {
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}`, body);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "更新活動資料失敗");
+  }
+}
+
 export interface JoinEventRequest {
   code: string;
   name?: string;

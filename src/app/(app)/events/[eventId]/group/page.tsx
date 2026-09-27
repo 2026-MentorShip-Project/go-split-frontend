@@ -10,7 +10,7 @@ import Toast from "@/components/ui/Toast";
 import { CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
 import {
   getEvent, type EventDetail,
-  getCondTags
+  getCondTags, updateEventMetadata
 } from "@/api/event";
 import { fmtIsoDatetime } from "@/lib/formatters";
 import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
@@ -136,9 +136,17 @@ export default function GroupPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSaveEvEdit = () => {
+  const handleSaveEvEdit = async () => {
     if (!evEdit) return;
-    setEvData((prev) => prev ? { ...prev, name: evEdit.name, place: evEdit.place } : prev);
+    const name = evEdit.name.trim();
+    const place = evEdit.place.trim();
+    try {
+      await updateEventMetadata(eventId, { name, place });
+    } catch (e) {
+      setMemberToast(e instanceof Error ? e.message : "更新活動資料失敗");
+      return;
+    }
+    setEvData((prev) => prev ? { ...prev, name, place } : prev);
     setEvEdit(null);
   };
 
@@ -180,7 +188,7 @@ export default function GroupPage() {
                 <IconButton variant="sm" title="取消" onClick={() => setEvEdit(null)}>
                   <XIcon size={16} />
                 </IconButton>
-                <IconButton variant="sm-fill" title="儲存" onClick={handleSaveEvEdit}>
+                <IconButton variant="sm-fill" title="儲存" onClick={() => void handleSaveEvEdit()}>
                   <CheckIcon size={16} />
                 </IconButton>
               </span>
