@@ -13,6 +13,9 @@ import {
 import { effLabel, restLabel as calcRestLabel, matchCount } from "@/lib/calculations";
 import TagPicker from "@/components/features/TagPicker";
 import RuleGroupEditor from "@/components/features/RuleGroupEditor";
+import SplitPreview from "@/components/features/SplitPreview";
+import { useSplitEngine } from "@/hooks/useSplitEngine";
+import { num } from "@/lib/formatters";
 import { duplicateGroups, itemTagUsage, ruleProblem, validWeight } from "@/lib/rules";
 import Dialog from "@/components/ui/Dialog";
 import type { Rule, RuleGroup } from "@/lib/types";
@@ -62,6 +65,8 @@ export default function RulesPage() {
   const [archived, setArchived] = useState(false);
   const [settled, setSettled] = useState(false);
 
+  const [previewAmount, setPreviewAmount] = useState("1200");
+  const engine = useSplitEngine();
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -843,6 +848,29 @@ export default function RulesPage() {
                     <span className="fs14 fw500">{calcRestLabel(r)}</span>
                   )}
                 </div>
+
+                {isEditing && r.tag && (engine.ready || engine.error) && (
+                  <div className="mt-14" style={{ paddingTop: 12, borderTop: "1px solid var(--ln-control)" }}>
+                    {engine.error && <div className="fs12 text3">分攤預覽暫時無法使用</div>}
+                    <div className="flex items-center gap-8" style={{ marginBottom: 8 }}>
+                      <span className="fs12 text2">假設這筆「{r.tag}」是</span>
+                      <input
+                        className="input input--sm"
+                        style={{ width: 90, textAlign: "right" }}
+                        value={previewAmount}
+                        inputMode="numeric"
+                        onChange={(e) => setPreviewAmount(e.target.value)}
+                      />
+                    </div>
+                    {engine.ready && (
+                      <SplitPreview
+                        detail={{ name: "", amount: num(previewAmount), tags: [r.tag], note: "", ids: null }}
+                        members={members}
+                        rules={rules}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
