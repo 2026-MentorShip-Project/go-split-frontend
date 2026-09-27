@@ -30,7 +30,7 @@ export interface AuthSlice {
 export const createAuthSlice: StateCreator<AuthSlice, [], [], AuthSlice> = (set) => ({
   guest: false,
   blank: false,
-  role: 'host',
+  role: 'member',
   persona: 'host',
   acc: { name: '小凱', mail: 'kai@example.com', pass: 'demo1234' },
   loginTab: 'acc',

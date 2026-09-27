@@ -143,13 +143,7 @@ export interface ShareResult {
   mismatch: boolean;
   diff: number;
   overflow: boolean;
-}
-
-export interface Transfer {
-  key: string;
-  from: Member;
-  to: Member;
-  amount: number;
+  validity: 'ok' | 'no-participant' | 'custom-mismatch' | 'custom-overflow';
 }
 
 export interface FlowLine {

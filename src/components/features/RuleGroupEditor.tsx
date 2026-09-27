@@ -18,9 +18,10 @@ interface RuleGroupEditorProps {
   effOpen: boolean;
   onOpenEff: () => void;
   modeOpts: { label: string; mark: string; sel: boolean; onPick: () => void }[];
-  isPct: boolean;
-  pctVal: string;
-  onSetPct: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isWeight: boolean;
+  weightVal: string;
+  weightInvalid: boolean;
+  onSetWeight: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDelete: () => void;
   onClosePick: () => void;
   opacity?: number;
@@ -45,9 +46,10 @@ export default function RuleGroupEditor({
   effOpen,
   onOpenEff,
   modeOpts,
-  isPct,
-  pctVal,
-  onSetPct,
+  isWeight,
+  weightVal,
+  weightInvalid,
+  onSetWeight,
   onDelete,
   onClosePick,
   opacity,
@@ -155,17 +157,18 @@ export default function RuleGroupEditor({
         </div>
       </div>
 
-      {isPct && (
+      {isWeight && (
         <div className="flex items-center gap-8" style={{ marginTop: 8 }}>
-          <span className="fs14 text2">比例：</span>
+          <span className="fs14 text2">權重：</span>
+          <span className="fs14 text3">×</span>
           <input
-            className="input input--sm"
+            className={`input input--sm${weightInvalid ? " input--err" : ""}`}
             style={{ width: 90, textAlign: "right" }}
-            value={pctVal}
-            onChange={onSetPct}
-            placeholder="0"
+            value={weightVal}
+            onChange={onSetWeight}
+            placeholder="1"
           />
-          <span className="fs14 text3">%</span>
+          <span className="fs12 text3">0.1～100，最多一位小數</span>
         </div>
       )}
     </div>

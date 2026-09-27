@@ -4,8 +4,9 @@ import { useRouter, useParams } from "next/navigation";
 import { useStore } from "@/store";
 import IconButton from "@/components/ui/IconButton";
 import { BackIcon } from "@/components/icons";
-import { itemTotal, detailShares } from "@/lib/calculations";
+import { detailShares } from "@/lib/calculations";
 import { money } from "@/lib/formatters";
+import { useSplitEngine } from "@/hooks/useSplitEngine";
 
 export default function PairDetailPage() {
   const router = useRouter();
@@ -16,10 +17,13 @@ export default function PairDetailPage() {
   const members = useStore((s) => s.members);
   const itemsBy = useStore((s) => s.itemsBy);
   const rules = useStore((s) => s.rules);
+  const engine = useSplitEngine();
 
   const me = members[0];
   const other = members.find((m) => m.id === memberId);
   if (!me || !other) return <div className="page-shell">找不到人員</div>;
+  if (engine.error) return <div className="page-shell">{engine.error}</div>;
+  if (!engine.ready) return <div className="page-shell">計算中…</div>;
 
   const items = itemsBy[eventId] || [];
 

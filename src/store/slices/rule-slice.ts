@@ -11,6 +11,11 @@ export interface RuleSlice {
   rulePick: string | null;
   ruleTagQuery: string;
   ruleCondQuery: string;
+  condPick: string | null;
+  effPick: string | null;
+  dragGroup: string | null;
+  ruleError: string | null;
+  resplitAsk: { index: number; tag: string; count: number } | null;
   tagEdit: TagEdit | null;
   tagMenu: TagMenu | null;
   tagUsedAsk: { text: string } | null;
@@ -28,6 +33,11 @@ export interface RuleSlice {
   setRulePick: (v: string | null) => void;
   setRuleTagQuery: (q: string) => void;
   setRuleCondQuery: (q: string) => void;
+  setCondPick: (v: string | null) => void;
+  setEffPick: (v: string | null) => void;
+  setDragGroup: (v: string | null) => void;
+  setRuleError: (v: string | null) => void;
+  setResplitAsk: (v: { index: number; tag: string; count: number } | null) => void;
   setTagEdit: (v: TagEdit | null) => void;
   setTagMenu: (v: TagMenu | null) => void;
   setTagUsedAsk: (v: { text: string } | null) => void;
@@ -46,6 +56,11 @@ export const createRuleSlice: StateCreator<RuleSlice, [], [], RuleSlice> = (set)
   rulePick: null,
   ruleTagQuery: '',
   ruleCondQuery: '',
+  condPick: null,
+  effPick: null,
+  dragGroup: null,
+  ruleError: null,
+  resplitAsk: null,
   tagEdit: null,
   tagMenu: null,
   tagUsedAsk: null,
@@ -66,6 +81,11 @@ export const createRuleSlice: StateCreator<RuleSlice, [], [], RuleSlice> = (set)
   setRulePick: (v) => set({ rulePick: v }),
   setRuleTagQuery: (q) => set({ ruleTagQuery: q }),
   setRuleCondQuery: (q) => set({ ruleCondQuery: q }),
+  setCondPick: (v) => set({ condPick: v }),
+  setEffPick: (v) => set({ effPick: v }),
+  setDragGroup: (v) => set({ dragGroup: v }),
+  setRuleError: (v) => set({ ruleError: v }),
+  setResplitAsk: (v) => set({ resplitAsk: v }),
   setTagEdit: (v) => set({ tagEdit: v }),
   setTagMenu: (v) => set({ tagMenu: v }),
   setTagUsedAsk: (v) => set({ tagUsedAsk: v }),
