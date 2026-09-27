@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import { BackIcon, CheckIcon } from "@/components/icons";
 import DatePicker from "@/components/ui/DatePicker";
-import { createEvent, toRfc3339, getTemplates, TemplateItem } from "@/api/event";
+import { createEvent, getTemplates, TemplateItem } from "@/api/event";
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -36,14 +36,13 @@ export default function CreateEventPage() {
 
     setSubmitting(true);
     try {
-      const startsAt = toRfc3339(ev.d1, ev.t1);
-      const endsAt = toRfc3339(ev.d2, ev.t2);
+      // The date input already yields YYYY-MM-DD; a Date round-trip would shift the day east of UTC.
       const created = await createEvent({
         name: ev.name.trim(),
         template: ev.template,
         ...(ev.place.trim() ? { place: ev.place.trim() } : {}),
-        ...(startsAt ? { starts_at: startsAt } : {}),
-        ...(endsAt ? { ends_at: endsAt } : {}),
+        ...(ev.d1 ? { starts_at: ev.d1 } : {}),
+        ...(ev.d2 ? { ends_at: ev.d2 } : {}),
       });
 
       const newEvent = {
