@@ -60,7 +60,7 @@ export interface EventDetailDetail {
   note: string;
   ordinal: number;
   custom_amounts?: Record<string, number>;
-  custom_shares?: Record<string, number>;
+  manual_member_ids?: number[] | null;
   allocation?: {
     shares: { member_id: number; amount: number }[];
     excluded: { member_id: number; amount: number }[];
@@ -147,11 +147,15 @@ export async function getEvent(id: number): Promise<EventDetail> {
 }
 
 export interface CreateDetailRequest {
+  // Carry the existing id on edit; the API deletes any detail whose id it does
+  // not receive, and rejects an id on create.
+  id?: number;
   name: string;
   amount?: number;
   tag?: string;
   note?: string;
   custom_amounts?: Record<string, number>;
+  manual_member_ids?: number[] | null;
 }
 
 export interface CreateItemRequest {

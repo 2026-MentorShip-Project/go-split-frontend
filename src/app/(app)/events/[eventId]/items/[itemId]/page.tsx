@@ -13,28 +13,32 @@ import type { EventDetailDetail } from "@/api/event";
 import type { EventDetailMember } from "@/api/mombers";
 
 interface LocalDetail {
+  id?: number;
   name: string;
   amount: string;
   tags: string[];
   note: string;
-  custom_shares: Record<string, number>;
+  // What the engine worked out, for display. Never sent back: the API treats
+  // custom amounts as fixed overrides, so posting these would pin the split.
+  shares: Record<string, number>;
+  customAmounts: Record<string, number>;
+  manualMemberIds: number[] | null;
 }
 
 function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
-  const sharesFromAllocation = d.allocation?.shares?.reduce<Record<string, number>>(
+  const shares = d.allocation?.shares?.reduce<Record<string, number>>(
     (acc, s) => { acc[String(s.member_id)] = s.amount; return acc; },
     {}
   ) ?? {};
-  const custom_shares =
-    Object.keys(sharesFromAllocation).length > 0
-      ? sharesFromAllocation
-      : d.custom_amounts ?? d.custom_shares ?? {};
   return {
+    id: d.id,
     name: d.name,
     amount: String(d.amount ?? 0),
     tags: d.tag ? [d.tag] : [],
     note: d.note || "",
-    custom_shares,
+    shares,
+    customAmounts: d.custom_amounts ?? {},
+    manualMemberIds: d.manual_member_ids ?? null,
   };
 }
 
@@ -91,7 +95,10 @@ export default function ItemDetailPage() {
   };
 
   const handleAddDetail = () => {
-    setDetails((prev) => [...prev, { name: "", amount: "", tags: [], note: "", custom_shares: {} }]);
+    setDetails((prev) => [...prev, {
+      name: "", amount: "", tags: [], note: "",
+      shares: {}, customAmounts: {}, manualMemberIds: null,
+    }]);
     setEditDetail(details.length);
     setDirty(true);
   };
@@ -107,11 +114,13 @@ export default function ItemDetailPage() {
     try {
       const res = await updateItem(eventId, itemId, {
         details: details.map((d) => ({
+          id: d.id,
           name: d.name || "（未命名）",
           amount: Math.round(num(d.amount)),
           tag: d.tags[0] ?? "",
           note: d.note,
-          custom_amounts: Object.keys(d.custom_shares).length > 0 ? d.custom_shares : undefined,
+          custom_amounts: Object.keys(d.customAmounts).length > 0 ? d.customAmounts : undefined,
+          manual_member_ids: d.manualMemberIds,
         })),
       });
       setDetails(res.details.map(apiDetailToLocal));
@@ -205,10 +214,10 @@ export default function ItemDetailPage() {
                         ))}
                       </div>
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
-                      {Object.keys(d.custom_shares).length > 0 && (
+                      {Object.keys(d.shares).length > 0 && (
                         <div className="mt-12">
                           <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤人員</div>
-                          {Object.entries(d.custom_shares).map(([mid, amount]) => {
+                          {Object.entries(d.shares).map(([mid, amount]) => {
                             const member = members.find((m) => String(m.id) === mid);
                             return (
                               <div key={mid} className="flex between items-center" style={{ padding: "2px 0" }}>
