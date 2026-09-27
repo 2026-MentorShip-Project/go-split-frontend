@@ -56,6 +56,7 @@ export interface EventDetailDetail {
   allocation?: {
     shares: { member_id: number; amount: number }[];
     excluded: { member_id: number; amount: number }[];
+    validity: "ok" | "no-participant" | "custom-mismatch" | "custom-overflow";
   };
 }
 
