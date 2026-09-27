@@ -246,7 +246,7 @@ export default function RulesPage() {
 
   const handleSaveRule = async (i: number) => {
     const rule = rules[i];
-    const problem = ruleProblem(rule);
+    const problem = await ruleProblem(rule, condTags);
     if (problem) {
       setRuleError(problem);
       return;

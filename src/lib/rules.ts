@@ -1,6 +1,8 @@
+import { validateRule, type RuleIssueCode } from '@go-split/engine';
+import { initSplitEngine, toEngineRules } from './engine';
 import type { Rule, RuleGroup } from './types';
 
-/** Mirrors normalizeGroup on the server: 0.1–100 with at most one decimal. */
+// Per-field hint while typing; ruleProblem is what gates a save.
 export function validWeight(wt: string | undefined): boolean {
   const text = (wt ?? '').trim();
   if (text === '') return true; // omitted, so the server applies its default of 1
@@ -15,7 +17,7 @@ export function validWeight(wt: string | undefined): boolean {
 
 const condKey = (conds: string[]) => [...conds].sort().join('\u0000');
 
-/** Indexes of groups sharing a condition set — the server rejects duplicates. */
+// Marks the clashing groups; ruleProblem reports the same clash as one message.
 export function duplicateGroups(groups: RuleGroup[]): Set<number> {
   const firstSeen = new Map<string, number>();
   const duplicates = new Set<number>();
@@ -35,19 +37,31 @@ export function duplicateGroups(groups: RuleGroup[]): Set<number> {
   return duplicates;
 }
 
-/** The message to show the host, or null when the rule is savable. */
-export function ruleProblem(rule: Rule): string | null {
-  if (!rule.tag.trim()) return '請先選擇項目標籤';
-  if ((rule.groups ?? []).some((group) => (group.conds ?? []).length === 0)) {
-    return '每個群組都要至少選一個人員條件';
-  }
-  if (duplicateGroups(rule.groups ?? []).size > 0) return '有重複的條件組合';
+const ISSUE_MESSAGE: Record<RuleIssueCode, string> = {
+  'invalid-groups': '規則格式錯誤',
+  'invalid-rest': '「其他人員」設定錯誤',
+  'empty-cond-set': '每個群組都要至少選一個人員條件',
+  'duplicate-cond-set': '有重複的條件組合',
+  'unknown-cond': '有不存在的人員條件',
+  'invalid-mode': '效果必須是權重或不計入',
+  'invalid-weight': '權重需為 0.1～100，最多一位小數',
+};
 
-  const weighted = [...(rule.groups ?? []), ...(rule.rest ? [rule.rest] : [])];
-  if (weighted.some((group) => group.mode === 'weight' && !validWeight(group.wt))) {
-    return '權重需為 0.1～100，最多一位小數';
-  }
-  return null;
+/**
+ * The message to show the host, or null when the rule is savable. Runs the
+ * engine's own checks, so the verdict matches what the API will do on save.
+ */
+export async function ruleProblem(rule: Rule, condTags: string[]): Promise<string | null> {
+  if (!rule.tag.trim()) return '請先選擇項目標籤';
+
+  await initSplitEngine();
+  const [engineRule] = toEngineRules([rule]);
+  const verdict = validateRule({
+    groups: engineRule.groups,
+    rest: engineRule.rest,
+    cond_tags: condTags,
+  });
+  return verdict.ok ? null : ISSUE_MESSAGE[verdict.code];
 }
 
 /**
