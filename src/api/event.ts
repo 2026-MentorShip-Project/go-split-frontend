@@ -1,4 +1,4 @@
-import { BASE_URL, apiFetch, apiPost, apiPatch, apiDelete } from "./constant";
+import { BASE_URL, apiFetch, apiPost, apiPatch, apiDelete, readApiError } from "./constant";
 import { EventDetailMember } from "./mombers";
 import type { Rule, RuleGroup } from "@/lib/types";
 
@@ -44,8 +44,7 @@ export async function createEvent(body: CreateEventRequest): Promise<CreateEvent
   const res = await apiPost(`${BASE_URL}/events`, body);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "建立活動失敗");
+    throw new Error(await readApiError(res, "建立活動失敗"));
   }
 
   return res.json();
@@ -104,8 +103,7 @@ export async function updateEventMetadata(
 ): Promise<void> {
   const res = await apiPatch(`${BASE_URL}/events/${eventId}`, body);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "更新活動資料失敗");
+    throw new Error(await readApiError(res, "更新活動資料失敗"));
   }
 }
 
@@ -125,10 +123,9 @@ export interface JoinEventResponse {
 export async function joinEvent(body: JoinEventRequest): Promise<JoinEventResponse> {
   const res = await apiPost(`${BASE_URL}/events/join`, body);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
     if (res.status === 404) throw new Error("找不到此邀請碼，請確認後再試");
     if (res.status === 410) throw new Error("此活動已結算，無法再加入");
-    throw new Error(data.error ?? "加入活動失敗");
+    throw new Error(await readApiError(res, "加入活動失敗"));
   }
   return res.json();
 }
@@ -137,10 +134,9 @@ export async function getEvent(id: number): Promise<EventDetail> {
   const res = await apiFetch(`${BASE_URL}/events/${id}`);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
     if (res.status === 404) throw new Error("活動不存在");
     if (res.status === 403) throw new Error("你不是此活動成員");
-    throw new Error(data.error ?? "取得活動失敗");
+    throw new Error(await readApiError(res, "取得活動失敗"));
   }
 
   return res.json();
@@ -168,8 +164,7 @@ export async function createItem(eventId: number, body: CreateItemRequest): Prom
   const res = await apiPost(`${BASE_URL}/events/${eventId}/items`, body);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "新增款項失敗");
+    throw new Error(await readApiError(res, "新增款項失敗"));
   }
 
   return res.json();
@@ -179,9 +174,8 @@ export async function getItem(eventId: number, itemId: number): Promise<EventDet
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/items/${itemId}`);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
     if (res.status === 404) throw new Error("款項不存在");
-    throw new Error(data.error ?? "取得款項失敗");
+    throw new Error(await readApiError(res, "取得款項失敗"));
   }
 
   return res.json();
@@ -197,8 +191,7 @@ export async function updateItem(eventId: number, itemId: number, body: UpdateIt
   const res = await apiPatch(`${BASE_URL}/events/${eventId}/items/${itemId}`, body);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "更新款項失敗");
+    throw new Error(await readApiError(res, "更新款項失敗"));
   }
 
   return res.json();
@@ -208,8 +201,7 @@ export async function deleteItem(eventId: number, itemId: number): Promise<void>
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/items/${itemId}`);
 
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "刪除款項失敗");
+    throw new Error(await readApiError(res, "刪除款項失敗"));
   }
 }
 
@@ -217,8 +209,7 @@ export async function getEvents(): Promise<EventListItem[]> {
     const res = await apiFetch(`${BASE_URL}/events`);
 
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error ?? "取得活動列表失敗");
+      throw new Error(await readApiError(res, "取得活動列表失敗"));
     }
 
     const data = await res.json();
@@ -233,8 +224,7 @@ export interface TemplateItem {
 export async function getTemplates(): Promise<TemplateItem[]> {
   const res = await apiFetch(`${BASE_URL}/templates`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "取得模板失敗");
+    throw new Error(await readApiError(res, "取得模板失敗"));
   }
   const data = await res.json();
   return data.templates ?? [];
@@ -244,8 +234,7 @@ export async function getTemplates(): Promise<TemplateItem[]> {
 export async function getItemTags(eventId: number): Promise<string[]> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/items`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "取得項目標籤失敗");
+    throw new Error(await readApiError(res, "取得項目標籤失敗"));
   }
   const data = await res.json();
   return data.labels ?? [];
@@ -254,8 +243,7 @@ export async function getItemTags(eventId: number): Promise<string[]> {
 export async function addItemTag(eventId: number, label: string): Promise<string[]> {
   const res = await apiPost(`${BASE_URL}/events/${eventId}/tags/items`, { label });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "新增項目標籤失敗");
+    throw new Error(await readApiError(res, "新增項目標籤失敗"));
   }
   const data = await res.json();
   return data.labels ?? [];
@@ -264,16 +252,14 @@ export async function addItemTag(eventId: number, label: string): Promise<string
 export async function deleteItemTag(eventId: number, label: string): Promise<void> {
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/tags/items/${encodeURIComponent(label)}`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "刪除項目標籤失敗");
+    throw new Error(await readApiError(res, "刪除項目標籤失敗"));
   }
 }
 
 export async function getCondTags(eventId: number): Promise<string[]> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/conds`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "取得條件標籤失敗");
+    throw new Error(await readApiError(res, "取得條件標籤失敗"));
   }
   const data = await res.json();
   return data.labels ?? [];
@@ -282,8 +268,7 @@ export async function getCondTags(eventId: number): Promise<string[]> {
 export async function addCondTag(eventId: number, label: string): Promise<string[]> {
   const res = await apiPost(`${BASE_URL}/events/${eventId}/tags/conds`, { label });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "新增條件標籤失敗");
+    throw new Error(await readApiError(res, "新增條件標籤失敗"));
   }
   const data = await res.json();
   return data.labels ?? [];
@@ -292,8 +277,7 @@ export async function addCondTag(eventId: number, label: string): Promise<string
 export async function deleteCondTag(eventId: number, label: string): Promise<void> {
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/tags/conds/${encodeURIComponent(label)}`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "刪除條件標籤失敗");
+    throw new Error(await readApiError(res, "刪除條件標籤失敗"));
   }
 }
 
@@ -302,8 +286,7 @@ export async function deleteCondTag(eventId: number, label: string): Promise<voi
 export async function archiveEvent(eventId: number): Promise<void> {
   const res = await apiPost(`${BASE_URL}/events/${eventId}/archive`, {});
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "封存活動失敗");
+    throw new Error(await readApiError(res, "封存活動失敗"));
   }
 }
 
@@ -359,8 +342,7 @@ function mapRuleFromApi(dto: Record<string, unknown>): Rule {
 export async function getRules(eventId: number): Promise<Rule[]> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/rules`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "取得分攤規則失敗");
+    throw new Error(await readApiError(res, "取得分攤規則失敗"));
   }
   const data = await res.json();
   return (data.rules ?? []).map(mapRuleFromApi);
@@ -376,8 +358,7 @@ export async function createRule(
     rest: restToApi(rule.rest),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "新增分攤規則失敗");
+    throw new Error(await readApiError(res, "新增分攤規則失敗"));
   }
   return mapRuleFromApi(await res.json());
 }
@@ -392,8 +373,7 @@ export async function updateRuleApi(
     ...(body.rest === undefined ? {} : { rest: restToApi(body.rest) }),
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "更新分攤規則失敗");
+    throw new Error(await readApiError(res, "更新分攤規則失敗"));
   }
   return mapRuleFromApi(await res.json());
 }
@@ -401,8 +381,7 @@ export async function updateRuleApi(
 export async function deleteRuleApi(eventId: number, ruleId: number): Promise<void> {
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/rules/${ruleId}`);
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error ?? "刪除分攤規則失敗");
+    throw new Error(await readApiError(res, "刪除分攤規則失敗"));
   }
 }
 
