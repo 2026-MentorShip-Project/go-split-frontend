@@ -8,7 +8,6 @@ import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
 import { money, fmtIsoDatetime } from "@/lib/formatters";
-import { ntdollars } from "@/lib/settlement";
 import { getEvent, type EventDetail } from "@/api/event";
 import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
 
@@ -271,7 +270,7 @@ export default function EventPage() {
                     </span>
                   </span>
                   <span className="flex items-center gap-8" style={{ flex: "none" }}>
-                    <span className="fs14 fw500 text2">{money(ntdollars(it.total, it.total_cents))}</span>
+                    <span className="fs14 fw500 text2">{money(it.total)}</span>
                     <span className="text3">›</span>
                   </span>
                 </button>
@@ -286,7 +285,7 @@ export default function EventPage() {
           <div className="mt-20 flex items-baseline between wrap gap-6">
             <span className="section-title">款項現況</span>
             <span className="flex gap-8 wrap" style={{ justifyContent: "flex-end" }}>
-              <span className="fs14">合計 {money(ntdollars(ev.total, ev.total_cents))}</span>
+              <span className="fs14">合計 {money(ev.total)}</span>
             </span>
           </div>
 
@@ -304,7 +303,7 @@ export default function EventPage() {
                   <div className="flex between items-start gap-10">
                     <span className="grow fs16 fw500">{payer?.display ?? "—"} 代墊</span>
                     <span style={{ flex: "0 1 auto", maxWidth: "55%", textAlign: "right" }} className="fs16 fw500">
-                      {money(ntdollars(it.total, it.total_cents))}
+                      {money(it.total)}
                     </span>
                   </div>
                   <div className="mt-6 fs12 text2">

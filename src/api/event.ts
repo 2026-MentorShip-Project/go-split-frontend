@@ -64,8 +64,7 @@ export interface EventDetailItem {
   payer_member_id: number;
   author_member_id: number;
   has_receipt: boolean;
-  total?: number;
-  total_cents?: number;
+  total: number;
   created_at: string;
   details: EventDetailDetail[];
 }
@@ -82,8 +81,7 @@ export interface EventDetail {
   settled: boolean;
   archived: boolean;
   my_role: string;
-  total?: number;
-  total_cents?: number;
+  total: number;
   transfer_note?: string;
   members: EventDetailMember[];
   items: EventDetailItem[];

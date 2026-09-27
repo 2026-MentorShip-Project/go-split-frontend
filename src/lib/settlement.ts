@@ -1,4 +1,4 @@
-import type { EventDetail, EventDetailItem } from "@/api/event";
+import type { EventDetail } from "@/api/event";
 import type { MemberShare, SharesResponse, Transfer, TransfersResponse } from "@/api/settlement";
 import { roleFromApi } from "@/api/mombers";
 
@@ -41,15 +41,6 @@ export interface SettlementPreview {
   flows: SettlementFlowRow[];
 }
 
-/** Swagger money fields are whole NT dollars. `total_cents` is only a leftover key, same unit. */
-export function ntdollars(...candidates: Array<number | undefined>): number {
-  return candidates.find((value): value is number => typeof value === "number") ?? 0;
-}
-
-function itemAmount(item: EventDetailItem): number {
-  return ntdollars(item.total, item.total_cents);
-}
-
 function memberName(
   membersById: Map<number, { display: string }>,
   id: number,
@@ -71,7 +62,7 @@ export function buildSettlementPreview(
   const items: SettlementItemRow[] = (event.items ?? []).map((item) => ({
     id: item.id,
     label: (item.details ?? []).map((d) => d.name).filter(Boolean).join("、") || "（未命名）",
-    amount: itemAmount(item),
+    amount: item.total,
   }));
 
   const splits: SettlementSplitRow[] = event.members.map((m) => {
@@ -110,9 +101,7 @@ export function buildSettlementPreview(
     settled: event.settled,
     myRole: event.my_role,
     transferNote: event.transfer_note ?? "",
-    grandTotal: shares.grand_total != null
-      ? shares.grand_total
-      : ntdollars(event.total, event.total_cents),
+    grandTotal: shares.grand_total ?? event.total,
     items,
     splits,
     flows,
