@@ -66,8 +66,8 @@ export default function GroupPage() {
   if (!evData) return <div className="page-shell">載入中…</div>;
 
   const isLocked = evData.settled || evData.archived;
-  const isHostOrCo = evData.my_role === "host" || evData.my_role === "co";
-  const canAddMember = isHostOrCo && !isLocked;
+  const isHost = evData.my_role === "host";
+  const canAddMember = isHost && !isLocked;
   const inviteCode = evData.invite_code;
   const inviteLink = `https://go-split.app/invite/${inviteCode}`;
 
@@ -219,7 +219,7 @@ export default function GroupPage() {
 
       <div className="mt-16 flex wrap items-start gap-20">
         {/* Invite Link */}
-        {isHostOrCo && (
+        {isHost && (
           <div style={{ flex: "1 1 300px", minWidth: 0 }} className="flex-col gap-10">
             <div className="section-title">專屬邀請連結</div>
             <div

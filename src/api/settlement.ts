@@ -1,4 +1,4 @@
-import { BASE_URL, apiFetch, apiPatch, apiPost } from "./constant";
+import { BASE_URL, apiFetch, apiPatch, apiPost, readApiError } from "./constant";
 
 export interface MemberShare {
   member_id: number;
@@ -22,22 +22,6 @@ export interface TransfersResponse {
   hub_id: number;
   strategy: string;
   transfers: Transfer[];
-}
-
-export interface SettleValidationDetail {
-  code?: string;
-  detail_id?: number;
-}
-
-async function readApiError(res: Response, fallback: string): Promise<string> {
-  const data = await res.json().catch(() => ({} as Record<string, unknown>));
-  const error = typeof data.error === "string" ? data.error : fallback;
-  const details = Array.isArray(data.details)
-    ? (data.details as SettleValidationDetail[])
-        .map((d) => d.code)
-        .filter((code): code is string => Boolean(code))
-    : [];
-  return details.length > 0 ? `${error}（${details.join("、")}）` : error;
 }
 
 export async function getShares(eventId: number): Promise<SharesResponse> {
