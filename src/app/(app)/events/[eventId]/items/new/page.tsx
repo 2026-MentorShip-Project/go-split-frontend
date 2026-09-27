@@ -8,7 +8,11 @@ import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import { BackIcon, CheckIcon, PlusIcon, EditIcon, TrashIcon, XIcon, StarIcon, ChevDownIcon } from "@/components/icons";
 import { money, num } from "@/lib/formatters";
-import { getEvent, createItem } from "@/api/event";
+import { getEvent, createItem, getItemTags, getRules } from "@/api/event";
+import { roleFromApi } from "@/api/mombers";
+import { useSplitEngine } from "@/hooks/useSplitEngine";
+import SplitPreview from "@/components/features/SplitPreview";
+import type { Member, Rule } from "@/lib/types";
 
 export default function AddItemPage() {
   const router = useRouter();
@@ -20,18 +24,35 @@ export default function AddItemPage() {
   const draftEdit = useStore((s) => s.draftEdit);
   const setDraftEdit = useStore((s) => s.setDraftEdit);
   const itemTags = useStore((s) => s.itemTags);
+  const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
 
   const [myMemberId, setMyMemberId] = useState<number | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const engine = useSplitEngine();
 
   useEffect(() => {
-    getEvent(eventId).then((ev) => {
-      const me = ev.members.find((m) => m.you);
-      if (me) setMyMemberId(me.id);
-    }).catch(console.error);
-  }, [eventId]);
+    Promise.all([getEvent(eventId), getItemTags(eventId), getRules(eventId)])
+      .then(([ev, tags, eventRules]) => {
+        const me = ev.members.find((m) => m.you);
+        if (me) setMyMemberId(me.id);
+        setMembers(ev.members.map((m) => ({
+          id: String(m.id),
+          name: m.display,
+          role: roleFromApi(m.role),
+          tags: m.tags,
+          login: "",
+          guest: m.guest,
+          you: m.you,
+        })));
+        setItemTags(tags);
+        setRules(eventRules);
+      })
+      .catch(console.error);
+  }, [eventId, setItemTags]);
 
   const draftTotal = draft.details.reduce(
     (a, d) => a + (typeof d.amount === "number" ? d.amount : num(String(d.amount))),
@@ -234,6 +255,12 @@ export default function AddItemPage() {
                         placeholder="其他備註"
                         style={{ padding: 12, fontSize: 14 }}
                       />
+                      {engine.error && (
+                        <div className="fs12 text3">分攤預覽暫時無法使用</div>
+                      )}
+                      {engine.ready && (
+                        <SplitPreview detail={d} members={members} rules={rules} />
+                      )}
                     </div>
                   </>
                 )}
