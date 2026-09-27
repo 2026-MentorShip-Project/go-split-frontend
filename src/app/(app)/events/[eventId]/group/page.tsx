@@ -68,7 +68,7 @@ export default function GroupPage() {
   const isHost = evData.my_role === "host";
   const canAddMember = isHost && !isLocked;
   const inviteCode = evData.invite_code;
-  const inviteLink = `https://go-split.vercel.app/login?invite=${inviteCode}`;
+  const inviteLink = inviteCode ? `https://go-split.vercel.app/login?invite=${inviteCode}` : "";
 
   const handleSaveMember = async (i: number) => {
     const m = members[i];

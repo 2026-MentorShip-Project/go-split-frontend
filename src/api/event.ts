@@ -77,7 +77,8 @@ export interface EventDetail {
   ends_at: string;
   template: string;
   created_at: string;
-  invite_code: string;
+  // Absent once the event is settled; the API stops issuing a code.
+  invite_code?: string;
   settled: boolean;
   archived: boolean;
   my_role: string;
