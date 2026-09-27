@@ -1,15 +1,16 @@
 "use client";
 
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/store";
 import { googleLogin } from "@/api/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function LoginClient({ googleClientId }: { googleClientId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const code = useStore((s) => s.code);
   const setCode = useStore((s) => s.setCode);
   const join2 = useStore((s) => s.join2);
@@ -18,8 +19,13 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
   const setGuest = useStore((s) => s.setGuest);
   const setUserName = useStore((s) => s.setUserName);
 
-  const [showInvite, setShowInvite] = useState(false);
+  const [showInvite, setShowInvite] = useState(() => Boolean(searchParams.get("invite")));
   const [joinTouched, setJoinTouched] = useState(false);
+
+  useEffect(() => {
+    const invite = searchParams.get("invite");
+    if (invite) setCode(invite);
+  }, [searchParams, setCode]);
   const joinMailErr = joinTouched && !join2.mail.trim();
   const joinPhoneErr = joinTouched && !join2.phone.trim();
   const codeErr = joinTouched && !code.trim();

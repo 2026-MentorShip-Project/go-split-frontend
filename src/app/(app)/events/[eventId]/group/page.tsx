@@ -8,6 +8,7 @@ import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Toast from "@/components/ui/Toast";
 import { CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
+import { QRCodeSVG } from "qrcode.react";
 import {
   getEvent, type EventDetail,
   getCondTags, updateEventMetadata
@@ -69,7 +70,7 @@ export default function GroupPage() {
   const isHost = evData.my_role === "host";
   const canAddMember = isHost && !isLocked;
   const inviteCode = evData.invite_code;
-  const inviteLink = `https://go-split.app/invite/${inviteCode}`;
+  const inviteLink = `https://go-split.vercel.app/login?invite=${inviteCode}`;
 
   const handleSaveMember = async (i: number) => {
     const m = members[i];
@@ -229,11 +230,7 @@ export default function GroupPage() {
                 ...(isLocked ? { opacity: 0.5, pointerEvents: "none" } : {}),
               }}
             >
-              <div className="qr-placeholder">
-                <span style={{ font: "11px/1.6 ui-monospace,Menlo,monospace", color: "var(--text3)" }}>
-                  QR CODE<br />placeholder
-                </span>
-              </div>
+              <QRCodeSVG value={inviteLink} size={160} />
               {inviteCode && (
                 <>
                   <div
