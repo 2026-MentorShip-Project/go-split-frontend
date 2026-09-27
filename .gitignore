@@ -42,3 +42,6 @@ next-env.d.ts
 
 # split engine binary, copied from node_modules by scripts/sync-engine.mjs
 /public/engine.wasm
+
+# local audit note, not committed
+/public/docs/FE-BE-MISALIGNMENT.md
