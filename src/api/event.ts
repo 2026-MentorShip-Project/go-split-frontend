@@ -33,13 +33,6 @@ export interface EventListItem {
     archived: boolean;
   }
 
-export function toRfc3339(date: string, time: string): string | undefined {
-  if (!date) return undefined;
-  const [year, month, day] = date.split("-").map(Number);
-  const [hour = 0, minute = 0] = (time || "00:00").split(":").map(Number);
-  return new Date(year, month - 1, day, hour, minute).toISOString();
-}
-
 export async function createEvent(body: CreateEventRequest): Promise<CreateEventResponse> {
   const res = await apiPost(`${BASE_URL}/events`, body);
 
