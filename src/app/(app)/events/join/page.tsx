@@ -16,12 +16,13 @@ export default function JoinFormPage() {
   const setJoin = useStore((s) => s.setJoin);
   const condTags = useStore((s) => s.condTags);
   const setCur = useStore((s) => s.setCur);
-  const setFirstJoin = useStore((s) => s.setFirstJoin);
   const code = useStore((s) => s.code);
   const join2 = useStore((s) => s.join2);
   const setGuest = useStore((s) => s.setGuest);
 
   const [loading, setLoading] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
+  const nameErr = nameTouched && !join.name.trim();
 
   const toggleCond = (c: string) => {
     const conds = join.conds.includes(c)
@@ -31,13 +32,20 @@ export default function JoinFormPage() {
   };
 
   const handleSubmit = async () => {
+    setNameTouched(true);
+    if (!join.name.trim()) return;
     setLoading(true);
     try {
-      const result = await joinByCode({ code, email: join2.mail, name: join.name, phone: join2.phone });
+      const result = await joinByCode({
+        code,
+        email: join2.mail,
+        name: join.name,
+        phone: join2.phone,
+        cond_tags: join.conds.length > 0 ? join.conds : undefined,
+      });
       localStorage.setItem("guest_session", JSON.stringify(result));
       setGuest(true);
       setCur(result.event_id);
-      setFirstJoin(false);
       router.push(`/events/${result.event_id}`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "加入活動失敗");
@@ -50,7 +58,7 @@ export default function JoinFormPage() {
     <div className="page-shell page-shell--narrow">
       <div className="topbar">
         <div className="topbar-row">
-          <IconButton onClick={() => router.push("/events/invite")}>
+          <IconButton onClick={() => router.back()}>
             <BackIcon />
           </IconButton>
           <span className="topbar-title">填寫加入訊息</span>
@@ -64,25 +72,29 @@ export default function JoinFormPage() {
             value={join.name}
             onChange={(e) => setJoin({ name: e.target.value })}
             placeholder="你的名字"
+            error={nameErr}
           />
+          {nameErr && <div className="field-err">請填寫姓名</div>}
         </div>
 
-        <div>
-          <div className="fs14" style={{ marginBottom: 9 }}>人員條件</div>
-          <div className="flex wrap gap-8">
-            {condTags.map((c) => (
-              <Chip
-                key={c}
-                label={c}
-                kind="cond"
-                selected={join.conds.includes(c)}
-                md
-                hash
-                onClick={() => toggleCond(c)}
-              />
-            ))}
+        {condTags.length > 0 && (
+          <div>
+            <div className="fs14" style={{ marginBottom: 9 }}>人員條件</div>
+            <div className="flex wrap gap-8">
+              {condTags.map((c) => (
+                <Chip
+                  key={c}
+                  label={c}
+                  kind="cond"
+                  selected={join.conds.includes(c)}
+                  md
+                  hash
+                  onClick={() => toggleCond(c)}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="field">
           <div className="field-label">其他備註</div>

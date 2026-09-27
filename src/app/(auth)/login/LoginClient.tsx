@@ -3,7 +3,7 @@
 import { GoogleOAuthProvider, GoogleLogin, CredentialResponse } from '@react-oauth/google';
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/store";
-import { googleLogin } from "@/api/auth";
+import { googleLogin, getInvite } from "@/api/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import { useState, useEffect } from "react";
@@ -15,17 +15,19 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
   const setCode = useStore((s) => s.setCode);
   const join2 = useStore((s) => s.join2);
   const setJoin2 = useStore((s) => s.setJoin2);
-  const setFirstJoin = useStore((s) => s.setFirstJoin);
+  const setCondTags = useStore((s) => s.setCondTags);
   const setGuest = useStore((s) => s.setGuest);
   const setUserName = useStore((s) => s.setUserName);
 
   const [showInvite, setShowInvite] = useState(() => Boolean(searchParams.get("invite")));
   const [joinTouched, setJoinTouched] = useState(false);
+  const [joinLoading, setJoinLoading] = useState(false);
 
   useEffect(() => {
     const invite = searchParams.get("invite");
     if (invite) setCode(invite);
   }, [searchParams, setCode]);
+
   const joinMailErr = joinTouched && !join2.mail.trim();
   const joinPhoneErr = joinTouched && !join2.phone.trim();
   const codeErr = joinTouched && !code.trim();
@@ -49,11 +51,19 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
     }
   };
 
-  const handleJoinByCode = () => {
+  const handleJoinByCode = async () => {
     setJoinTouched(true);
     if (!join2.mail.trim() || !join2.phone.trim() || !code.trim()) return;
-    setFirstJoin(true);
-    router.push("/events/invite");
+    setJoinLoading(true);
+    try {
+      const info = await getInvite(code);
+      setCondTags(info.cond_tags);
+      router.push("/events/join");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "無法取得活動資訊");
+    } finally {
+      setJoinLoading(false);
+    }
   };
 
   return (
@@ -127,6 +137,7 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
             />
             {joinPhoneErr && <div className="field-err">請填寫手機號碼</div>}
           </div>
+
           <div className="field">
             <div className="field-label">活動邀請碼</div>
             <Input
@@ -142,7 +153,9 @@ export default function LoginClient({ googleClientId }: { googleClientId: string
             />
             {codeErr && <div className="field-err">請填寫活動邀請碼</div>}
           </div>
-          <Button onClick={handleJoinByCode}>進入活動</Button>
+          <Button onClick={handleJoinByCode} disabled={joinLoading}>
+            {joinLoading ? "查詢中…" : "下一步"}
+          </Button>
           <button
             className="btn-link btn-link--muted"
             style={{ alignSelf: "center", border: "none", background: "none", cursor: "pointer", fontSize: 12, color: "var(--text3)" }}

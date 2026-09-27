@@ -17,7 +17,6 @@ import { fmtIsoDatetime } from "@/lib/formatters";
 import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
 
 export default function GroupPage() {
-  const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
 
@@ -27,7 +26,6 @@ export default function GroupPage() {
   const updateMember = useStore((s) => s.updateMember);
   const newMember = useStore((s) => s.newMember);
   const setNewMember = useStore((s) => s.setNewMember);
-  const addMember = useStore((s) => s.addMember);
   const removeMember = useStore((s) => s.removeMember);
   const memberToast = useStore((s) => s.memberToast);
   const setMemberToast = useStore((s) => s.setMemberToast);
@@ -223,41 +221,35 @@ export default function GroupPage() {
         {isHost && (
           <div style={{ flex: "1 1 300px", minWidth: 0 }} className="flex-col gap-10">
             <div className="section-title">專屬邀請連結</div>
-            <div
-              className="card"
-              style={{
-                padding: 20, display: "flex", flexDirection: "column", alignItems: "center",
-                ...(isLocked ? { opacity: 0.5, pointerEvents: "none" } : {}),
-              }}
-            >
-              <QRCodeSVG value={inviteLink} size={160} />
-              {inviteCode && (
-                <>
-                  <div
-                    className="mt-14"
-                    style={{
-                      width: "100%", padding: 12, borderRadius: 8,
-                      background: "var(--bg-neutral)",
-                      font: "11.5px/1.5 ui-monospace,Menlo,monospace",
-                      color: "var(--text2)", wordBreak: "break-all",
-                    }}
-                  >
-                    {inviteLink}
-                  </div>
-                  <div className="mt-8" style={{ font: "600 16px/1 ui-monospace,Menlo,monospace", letterSpacing: ".14em" }}>
-                    邀請碼 {inviteCode}
-                  </div>
-                  <button className="btn btn-secondary mt-12" disabled={isLocked} onClick={handleCopyLink}>
-                    {copied ? "已複製" : "複製連結"}
-                  </button>
-                </>
-              )}
-            </div>
-            {isLocked && (
-              <div className="fs12 text2" style={{ textAlign: "center" }}>
+            {isLocked ? (
+              <div className="fs12 text2">
                 {evData.settled ? "活動已結算，邀請連結已停用" : "活動已封存，邀請連結已停用"}
               </div>
-            )}
+            ) : inviteCode ? (
+              <div
+                className="card"
+                style={{ padding: 20, display: "flex", flexDirection: "column", alignItems: "center" }}
+              >
+                <QRCodeSVG value={inviteLink} size={160} />
+                <div
+                  className="mt-14"
+                  style={{
+                    width: "100%", padding: 12, borderRadius: 8,
+                    background: "var(--bg-neutral)",
+                    font: "11.5px/1.5 ui-monospace,Menlo,monospace",
+                    color: "var(--text2)", wordBreak: "break-all",
+                  }}
+                >
+                  {inviteLink}
+                </div>
+                <div className="mt-8" style={{ font: "600 16px/1 ui-monospace,Menlo,monospace", letterSpacing: ".14em" }}>
+                  邀請碼 {inviteCode}
+                </div>
+                <button className="btn btn-secondary mt-12" onClick={handleCopyLink}>
+                  {copied ? "已複製" : "複製連結"}
+                </button>
+              </div>
+            ) : null}
           </div>
         )}
 
