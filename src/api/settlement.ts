@@ -7,9 +7,17 @@ export interface MemberShare {
   net: number;
 }
 
+export interface DetailShare {
+  item_id: number;
+  detail_id: number;
+  amount: number;
+  shares: { member_id: number; amount: number }[];
+}
+
 export interface SharesResponse {
   grand_total?: number;
   per_member: MemberShare[];
+  per_detail: DetailShare[];
 }
 
 export interface Transfer {
@@ -33,6 +41,7 @@ export async function getShares(eventId: number): Promise<SharesResponse> {
   return {
     grand_total: data.grand_total,
     per_member: data.per_member ?? [],
+    per_detail: data.per_detail ?? [],
   };
 }
 
