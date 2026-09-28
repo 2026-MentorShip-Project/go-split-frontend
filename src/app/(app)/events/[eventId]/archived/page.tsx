@@ -6,7 +6,7 @@ import { useStore } from "@/store";
 import { useShallow } from "zustand/shallow";
 import Chip from "@/components/ui/Chip";
 import { money, fmtIsoDatetime } from "@/lib/formatters";
-import { ntdollars, buildSettlementPreview } from "@/lib/settlement";
+import { buildSettlementPreview } from "@/lib/settlement";
 import { roleFromApi } from "@/api/mombers";
 import { getEvent, type EventDetail } from "@/api/event";
 import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
@@ -154,7 +154,7 @@ export default function ArchivedPage() {
               <div className="flex between items-start gap-10">
                 <span className="grow fs16 fw500">{payer?.display ?? "—"} 代墊</span>
                 <span style={{ flex: "0 1 auto", maxWidth: "55%", textAlign: "right" }} className="fs16 fw500">
-                  {money(ntdollars(it.total, it.total_cents))}
+                  {money(it.total)}
                 </span>
               </div>
               <div className="mt-6 fs12 text2">

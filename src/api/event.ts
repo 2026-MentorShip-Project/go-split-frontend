@@ -56,6 +56,7 @@ export interface EventDetailDetail {
   allocation?: {
     shares: { member_id: number; amount: number }[];
     excluded: { member_id: number; amount: number }[];
+    validity: "ok" | "no-participant" | "custom-mismatch" | "custom-overflow";
   };
 }
 
@@ -64,8 +65,7 @@ export interface EventDetailItem {
   payer_member_id: number;
   author_member_id: number;
   has_receipt: boolean;
-  total?: number;
-  total_cents?: number;
+  total: number;
   created_at: string;
   details: EventDetailDetail[];
 }
@@ -78,12 +78,12 @@ export interface EventDetail {
   ends_at: string;
   template: string;
   created_at: string;
-  invite_code: string;
+  // Absent once the event is settled; the API stops issuing a code.
+  invite_code?: string;
   settled: boolean;
   archived: boolean;
   my_role: string;
-  total?: number;
-  total_cents?: number;
+  total: number;
   transfer_note?: string;
   members: EventDetailMember[];
   items: EventDetailItem[];

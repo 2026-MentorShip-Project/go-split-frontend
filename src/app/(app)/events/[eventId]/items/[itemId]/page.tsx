@@ -12,6 +12,12 @@ import { getEvent, getItem, updateItem, deleteItem, getItemTags } from "@/api/ev
 import type { EventDetailDetail } from "@/api/event";
 import type { EventDetailMember } from "@/api/mombers";
 
+const INVALID_SPLIT: Record<string, string> = {
+  "no-participant": "沒有人分攤這筆，結算時會被擋下",
+  "custom-mismatch": "指定金額加總與品項金額不符",
+  "custom-overflow": "指定金額超過品項金額",
+};
+
 interface LocalDetail {
   id?: number;
   name: string;
@@ -21,6 +27,7 @@ interface LocalDetail {
   // What the engine worked out, for display. Never sent back: the API treats
   // custom amounts as fixed overrides, so posting these would pin the split.
   shares: Record<string, number>;
+  invalid: string | null;
   customAmounts: Record<string, number>;
   manualMemberIds: number[] | null;
 }
@@ -37,6 +44,7 @@ function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
     tags: d.tag ? [d.tag] : [],
     note: d.note || "",
     shares,
+    invalid: d.allocation && d.allocation.validity !== "ok" ? d.allocation.validity : null,
     customAmounts: d.custom_amounts ?? {},
     manualMemberIds: d.manual_member_ids ?? null,
   };
@@ -97,7 +105,7 @@ export default function ItemDetailPage() {
   const handleAddDetail = () => {
     setDetails((prev) => [...prev, {
       name: "", amount: "", tags: [], note: "",
-      shares: {}, customAmounts: {}, manualMemberIds: null,
+      shares: {}, customAmounts: {}, manualMemberIds: null, invalid: null,
     }]);
     setEditDetail(details.length);
     setDirty(true);
@@ -214,6 +222,11 @@ export default function ItemDetailPage() {
                         ))}
                       </div>
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
+                      {d.invalid && (
+                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
+                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                        </div>
+                      )}
                       {Object.keys(d.shares).length > 0 && (
                         <div className="mt-12">
                           <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤人員</div>
