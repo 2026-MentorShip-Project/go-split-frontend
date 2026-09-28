@@ -1,64 +1,77 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useStore } from "@/store";
 import IconButton from "@/components/ui/IconButton";
 import { BackIcon } from "@/components/icons";
-import { detailShares } from "@/lib/calculations";
 import { money } from "@/lib/formatters";
-import { useSplitEngine } from "@/hooks/useSplitEngine";
+import { getEvent, type EventDetail } from "@/api/event";
+import { getShares, type SharesResponse } from "@/api/settlement";
+
+interface PairLine {
+  label: string;
+  dirText: string;
+  amount: number;
+}
+
+// /events/{id} has the payer and the names; only /shares has who owes what, and
+// after settlement that is the frozen snapshot rather than a live recount.
+function pairLines(
+  ev: EventDetail,
+  shares: SharesResponse,
+  meId: number,
+  otherId: number,
+): PairLine[] {
+  const nameById = new Map(ev.members.map((m) => [m.id, m.display]));
+  const me = nameById.get(meId) ?? `#${meId}`;
+  const other = nameById.get(otherId) ?? `#${otherId}`;
+  const owedByDetail = new Map(shares.per_detail.map((d) => [d.detail_id, d.shares]));
+  const lines: PairLine[] = [];
+
+  for (const item of ev.items ?? []) {
+    for (const detail of item.details ?? []) {
+      const owed = (id: number) =>
+        owedByDetail.get(detail.id)?.find((s) => s.member_id === id)?.amount ?? 0;
+
+      if (item.payer_member_id === meId && owed(otherId) > 0) {
+        lines.push({ label: detail.name, dirText: `${me} 代墊 → ${other} 分攤`, amount: owed(otherId) });
+      }
+      if (item.payer_member_id === otherId && owed(meId) > 0) {
+        lines.push({ label: detail.name, dirText: `${other} 代墊 → ${me} 分攤`, amount: -owed(meId) });
+      }
+    }
+  }
+  return lines;
+}
 
 export default function PairDetailPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
-  const memberId = params.memberId as string;
+  const otherId = Number(params.memberId);
 
-  const members = useStore((s) => s.members);
-  const itemsBy = useStore((s) => s.itemsBy);
-  const rules = useStore((s) => s.rules);
-  const engine = useSplitEngine();
+  const [data, setData] = useState<{ event: EventDetail; shares: SharesResponse } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const me = members[0];
-  const other = members.find((m) => m.id === memberId);
+  useEffect(() => {
+    Promise.all([getEvent(eventId), getShares(eventId)])
+      .then(([event, shares]) => setData({ event, shares }))
+      .catch((e) => setError(e instanceof Error ? e.message : "載入分攤明細失敗"));
+  }, [eventId]);
+
+  if (error) return <div className="page-shell">{error}</div>;
+  if (!data) return <div className="page-shell">載入中…</div>;
+  const { event, shares } = data;
+
+  const me = event.members.find((m) => m.you);
+  const other = event.members.find((m) => m.id === otherId);
   if (!me || !other) return <div className="page-shell">找不到人員</div>;
-  if (engine.error) return <div className="page-shell">{engine.error}</div>;
-  if (!engine.ready) return <div className="page-shell">計算中…</div>;
 
-  const items = itemsBy[eventId] || [];
-
-  const lines: { label: string; dirText: string; amount: string }[] = [];
-  let netAmount = 0;
-
-  items.forEach((it) => {
-    const payer = members.find((m) => m.name === it.by);
-    it.details.forEach((d) => {
-      const shares = detailShares(d, members, rules);
-      const myShare = shares.map[me.id] || 0;
-      const otherShare = shares.map[other.id] || 0;
-
-      if (payer?.id === me.id && otherShare > 0) {
-        lines.push({
-          label: d.name,
-          dirText: `${me.name} 代墊 → ${other.name} 分攤`,
-          amount: money(Math.round(otherShare)),
-        });
-        netAmount += otherShare;
-      }
-      if (payer?.id === other.id && myShare > 0) {
-        lines.push({
-          label: d.name,
-          dirText: `${other.name} 代墊 → ${me.name} 分攤`,
-          amount: money(Math.round(myShare)),
-        });
-        netAmount -= myShare;
-      }
-    });
-  });
-
-  const title = netAmount >= 0
-    ? `${other.name} 應付給 ${me.name}`
-    : `${me.name} 應付給 ${other.name}`;
+  const lines = pairLines(event, shares, me.id, other.id);
+  const net = lines.reduce((sum, l) => sum + l.amount, 0);
+  const title = net >= 0
+    ? `${other.display} 應付給 ${me.display}`
+    : `${me.display} 應付給 ${other.display}`;
 
   return (
     <div className="page-shell">
@@ -77,7 +90,7 @@ export default function PairDetailPage() {
       >
         <span style={{ fontSize: 24, fontWeight: 700 }}>{title}</span>
         <span style={{ flex: "none", fontSize: 24, fontWeight: 700, color: "var(--teal-hover)" }}>
-          {money(Math.abs(Math.round(netAmount)))}
+          {money(Math.abs(net))}
         </span>
       </div>
 
@@ -89,7 +102,7 @@ export default function PairDetailPage() {
               <span className="fs16">{l.label}</span>
               <span className="fs12 text3">{l.dirText}</span>
             </span>
-            <span className="fs16 fw700">{l.amount}</span>
+            <span className="fs16 fw700">{money(Math.abs(l.amount))}</span>
           </div>
         ))}
       </div>
