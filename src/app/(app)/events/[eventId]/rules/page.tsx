@@ -16,6 +16,7 @@ import RuleGroupEditor from "@/components/features/RuleGroupEditor";
 import SplitPreview from "@/components/features/SplitPreview";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import { num } from "@/lib/formatters";
+import RuleDraftPanel from "@/components/features/RuleDraftPanel";
 import { duplicateGroups, itemTagUsage, ruleProblem, validWeight } from "@/lib/rules";
 import Dialog from "@/components/ui/Dialog";
 import type { Rule, RuleGroup } from "@/lib/types";
@@ -343,6 +344,8 @@ export default function RulesPage() {
           }
         />
       )}
+
+      {canEditRules && <RuleDraftPanel eventId={eventId} members={members} />}
 
       {/* Item Tags Section */}
       <div className="mt-20 flex items-center between gap-10">
