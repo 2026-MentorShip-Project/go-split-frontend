@@ -9,6 +9,7 @@ import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import { BackIcon } from "@/components/icons";
 import { joinByCode } from "@/api/auth";
+import { joinEvent } from "@/api/event";
 
 export default function JoinFormPage() {
   const router = useRouter();
@@ -36,22 +37,33 @@ export default function JoinFormPage() {
     if (!join.name.trim()) return;
     setLoading(true);
     try {
-      const result = await joinByCode({
-        code,
-        email: join2.mail,
-        name: join.name,
-        phone: join2.phone,
-        cond_tags: join.conds.length > 0 ? join.conds : undefined,
-      });
-      localStorage.setItem("guest_session", JSON.stringify(result));
-      setGuest(true);
-      setCur(result.event_id);
-      router.push(`/events/${result.event_id}`);
+      // /auth/join always issues a guest session, replacing an account one.
+      // Anyone already signed in joins through the session-authenticated route.
+      const signedIn = Boolean(sessionStorage.getItem("userName"));
+      const eventId = signedIn
+        ? (await joinEvent({ code, name: join.name, cond_tags: join.conds, note: join.note })).event_id
+        : await joinAsGuest();
+      setCur(eventId);
+      router.push(`/events/${eventId}`);
     } catch (error) {
       alert(error instanceof Error ? error.message : "加入活動失敗");
     } finally {
       setLoading(false);
     }
+  };
+
+  const joinAsGuest = async () => {
+    const result = await joinByCode({
+      code,
+      email: join2.mail,
+      name: join.name,
+      phone: join2.phone,
+      cond_tags: join.conds.length > 0 ? join.conds : undefined,
+      note: join.note,
+    });
+    localStorage.setItem("guest_session", JSON.stringify(result));
+    setGuest(true);
+    return result.event_id;
   };
 
   return (
