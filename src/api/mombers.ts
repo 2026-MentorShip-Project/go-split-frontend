@@ -8,6 +8,7 @@ export interface EventDetailMember {
   display: string;
   role: string;
   tags: string[];
+  note: string;
   guest: boolean;
   you: boolean;
 }
