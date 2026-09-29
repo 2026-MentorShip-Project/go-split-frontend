@@ -81,8 +81,7 @@ export default function RulesPage() {
 
   const canEditRules = (role === "host" || role === "co") && !archived && !settled;
 
-  useEffect(() => {
-    if (!eventId) return;
+  const loadSettings = () => {
     void Promise.all([getItemTags(eventId), getCondTags(eventId), getRules(eventId)])
       .then(([it, ct, rl]) => { setItemTags(it); setCondTags(ct); setRules(rl); })
       .catch(() => {});
@@ -102,7 +101,12 @@ export default function RulesPage() {
         setUsage(itemTagUsage(ev.items));
       })
       .catch(() => {});
-  }, [eventId, setCondTags, setItemTags, setMembers, setRules]);
+  };
+
+  useEffect(() => {
+    if (!eventId) return;
+    loadSettings();
+  }, [eventId]);
 
   const handleItemTagSave = async (i: number) => {
     if (!tagEdit) return;
@@ -345,7 +349,9 @@ export default function RulesPage() {
         />
       )}
 
-      {canEditRules && <RuleDraftPanel eventId={eventId} members={members} />}
+      {canEditRules && (
+        <RuleDraftPanel eventId={eventId} members={members} rules={rules} usage={usage} onApplied={loadSettings} />
+      )}
 
       {/* Item Tags Section */}
       <div className="mt-20 flex items-center between gap-10">
