@@ -45,6 +45,26 @@ export async function getShares(eventId: number): Promise<SharesResponse> {
   };
 }
 
+export interface MyDetails {
+  member_id: number;
+  net: number;
+  transfers: Transfer[];
+}
+
+/** The caller's own net and transfers; open to every member, unlike /transfers before archive. */
+export async function getMyDetails(eventId: number): Promise<MyDetails> {
+  const res = await apiFetch(`${BASE_URL}/events/${eventId}/me/details`);
+  if (!res.ok) {
+    throw new Error(await readApiError(res, "取得個人分帳結果失敗"));
+  }
+  const data = await res.json();
+  return {
+    member_id: data.member_id,
+    net: data.net ?? 0,
+    transfers: data.transfers ?? [],
+  };
+}
+
 export async function getTransfers(eventId: number): Promise<TransfersResponse> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/transfers`);
   if (!res.ok) {
