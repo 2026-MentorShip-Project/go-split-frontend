@@ -54,6 +54,7 @@ export default function GroupPage() {
         name: m.display,
         role: roleFromApi(m.role),
         tags: m.tags,
+        note: m.note,
         login: "", // TODO: API does not return login info
         guest: m.guest,
         you: m.you,
@@ -120,6 +121,7 @@ export default function GroupPage() {
             name: mem.display,
             role: roleFromApi(mem.role),
             tags: mem.tags,
+            note: mem.note,
             login: "", // TODO: API does not return login info
             guest: mem.guest,
             you: mem.you,
@@ -296,6 +298,9 @@ export default function GroupPage() {
                       <div className="mt-4 fs12" style={{ color: "var(--tag-cond-fg)" }}>
                         {m.tags.length > 0 ? m.tags.map((t) => `#${t}`).join(" ") : "無條件"}
                       </div>
+                      {m.note && (
+                        <div className="mt-4 fs12 text2" style={{ textAlign: "left", whiteSpace: "pre-wrap" }}>{m.note}</div>
+                      )}
                     </>
                   ) : (
                     <div className="flex-col gap-12">
