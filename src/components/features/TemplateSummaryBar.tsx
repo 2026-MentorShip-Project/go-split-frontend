@@ -7,7 +7,7 @@ import type { TemplateSummary } from "@/api/event";
 const MAX_CHIPS = 3;
 
 export default function TemplateSummaryBar({ summary }: { summary: TemplateSummary }) {
-  const { label, rule_count, cond_tag_count, item_tag_count, rule_tags } = summary;
+  const { label, rule_count, cond_tag_count, item_tag_count, rule_tags = [] } = summary;
   const isEmpty = rule_count === 0 && cond_tag_count === 0 && item_tag_count === 0;
 
   return (
