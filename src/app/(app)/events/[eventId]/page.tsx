@@ -9,7 +9,7 @@ import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
 import { money, fmtIsoDatetime } from "@/lib/formatters";
 import { getEvent, type EventDetail } from "@/api/event";
-import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
+import { getMyDetails, type MyDetails } from "@/api/settlement";
 
 export default function EventPage() {
   const router = useRouter();
@@ -27,17 +27,14 @@ export default function EventPage() {
   const [ev, setEv] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [settlementData, setSettlementData] = useState<{
-    shares: SharesResponse;
-    transfers: TransfersResponse;
-  } | null>(null);
+  const [myDetails, setMyDetails] = useState<MyDetails | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       setLoading(true);
-      setSettlementData(null);
+      setMyDetails(null);
       try {
         const event = await getEvent(eventId);
         if (cancelled) return;
@@ -45,11 +42,8 @@ export default function EventPage() {
 
         if (event.settled) {
           try {
-            const [shares, transfers] = await Promise.all([
-              getShares(eventId),
-              getTransfers(eventId),
-            ]);
-            if (!cancelled) setSettlementData({ shares, transfers });
+            const details = await getMyDetails(eventId);
+            if (!cancelled) setMyDetails(details);
           } catch {
             // Settlement data is supplementary; flow section won't show
           }
@@ -78,16 +72,14 @@ export default function EventPage() {
 
   const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));
 
-  // Settlement flow data (host/co only)
   let myFlowLines: { text: string; amount: number; otherId: number }[] = [];
   let myNet = 0;
-  const showFlow = ev.settled && settlementData && me;
+  const showFlow = ev.settled && myDetails && me;
 
   if (showFlow) {
-    const myShare = settlementData.shares.per_member.find((s) => s.member_id === me.id);
-    myNet = myShare?.net ?? 0;
+    myNet = myDetails.net;
 
-    myFlowLines = (settlementData.transfers.transfers ?? [])
+    myFlowLines = myDetails.transfers
       .filter((t) => t.from_id === me.id || t.to_id === me.id)
       .map((t) => ({
         text: t.from_id === me.id
