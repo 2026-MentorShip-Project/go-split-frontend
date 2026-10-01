@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
@@ -15,6 +15,22 @@ import {
 } from "@/api/event";
 import { fmtIsoDatetime } from "@/lib/formatters";
 import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
+import type { Member } from "@/lib/types";
+
+const ROLE_OPTIONS: Member["role"][] = ["主辦者", "協辦者", "參與者"];
+
+/** 主辦者不可透過 UI 指派；第一位成員身分固定為主辦者。 */
+function isRoleDisabled(memberIndex: number, role: Member["role"]) {
+  if (role === "主辦者") return true;
+  if (memberIndex === 0) return true;
+  return false;
+}
+
+const ROLE_SELECTED_STYLE = {
+  borderColor: "var(--teal-hover)",
+  background: "rgba(111,183,183,.16)",
+  color: "var(--teal-deep)",
+} as const;
 
 export default function GroupPage() {
   const params = useParams();
@@ -318,26 +334,28 @@ export default function GroupPage() {
                       <div>
                         <div className="field-label" style={{ fontSize: 16, marginBottom: 6 }}>身分</div>
                         <div className="flex wrap gap-8">
-                          {(["主辦者", "協辦者", "參與者"] as const).map((r) => (
-                            <button
-                              key={r}
-                              className="btn-pill"
-                              style={{
-                                fontSize: 12, padding: "6px 12px",
-                                cursor: i === 0 && r !== "主辦者" ? "not-allowed" : "pointer",
-                                ...(m.role === r
-                                  ? { borderColor: "var(--teal-hover)", background: "rgba(111,183,183,.16)", color: "var(--teal-deep)" }
-                                  : {}),
-                                ...(i === 0 && r !== "主辦者" ? { opacity: 0.5 } : {}),
-                              }}
-                              onClick={() => {
-                                if (i === 0 && r !== "主辦者") return;
-                                updateMember(i, { role: r });
-                              }}
-                            >
-                              {r}
-                            </button>
-                          ))}
+                          {ROLE_OPTIONS.map((role) => {
+                            const disabled = isRoleDisabled(i, role);
+                            const selected = m.role === role;
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                className="btn-pill"
+                                disabled={disabled}
+                                style={{
+                                  fontSize: 12,
+                                  padding: "6px 12px",
+                                  cursor: disabled ? "not-allowed" : "pointer",
+                                  opacity: disabled ? 0.5 : undefined,
+                                  ...(selected ? ROLE_SELECTED_STYLE : {}),
+                                }}
+                                onClick={() => updateMember(i, { role })}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       <div>
