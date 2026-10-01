@@ -89,10 +89,15 @@ export interface EventDetail {
   items: EventDetailItem[];
 }
 
-// Name and place only: the API answers 409 on a template field, fixed at creation.
+// Template is fixed at creation (API 409). Name, place, and dates may change.
 export async function updateEventMetadata(
   eventId: number,
-  body: { name: string; place: string },
+  body: {
+    name: string;
+    place: string;
+    starts_at?: string;
+    ends_at?: string;
+  },
 ): Promise<void> {
   const res = await apiPatch(`${BASE_URL}/events/${eventId}`, body);
   if (!res.ok) {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Toast from "@/components/ui/Toast";
+import DatePicker from "@/components/ui/DatePicker";
 import { CheckIcon, EditIcon, TrashIcon, XIcon } from "@/components/icons";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -15,6 +16,38 @@ import {
 } from "@/api/event";
 import { fmtIsoDatetime } from "@/lib/formatters";
 import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
+import type { Member, EventEdit } from "@/lib/types";
+
+const ROLE_OPTIONS: Member["role"][] = ["主辦者", "協辦者", "參與者"];
+
+/** 主辦者不可透過 UI 指派；第一位成員身分固定為主辦者。 */
+function isRoleDisabled(memberIndex: number, role: Member["role"]) {
+  if (role === "主辦者") return true;
+  if (memberIndex === 0) return true;
+  return false;
+}
+
+const ROLE_SELECTED_STYLE = {
+  borderColor: "var(--teal-hover)",
+  background: "rgba(111,183,183,.16)",
+  color: "var(--teal-deep)",
+} as const;
+
+/** ISO datetime → YYYY-MM-DD for `<input type="date">`. */
+function isoDatePart(iso: string | undefined): string {
+  return iso?.slice(0, 10) ?? "";
+}
+
+function toEventEdit(ev: Pick<EventDetail, "name" | "place" | "starts_at" | "ends_at">): EventEdit {
+  return {
+    name: ev.name,
+    place: ev.place,
+    d1: isoDatePart(ev.starts_at),
+    t1: "",
+    d2: isoDatePart(ev.ends_at),
+    t2: "",
+  };
+}
 
 export default function GroupPage() {
   const params = useParams();
@@ -40,7 +73,6 @@ export default function GroupPage() {
   const setMTagPick = useStore((s) => s.setMTagPick);
   const mTagQuery = useStore((s) => s.mTagQuery);
   const setMTagQuery = useStore((s) => s.setMTagQuery);
-  const role = useStore((s) => s.role);
   const copied = useStore((s) => s.copied);
   const setCopied = useStore((s) => s.setCopied);
 
@@ -141,13 +173,29 @@ export default function GroupPage() {
     if (!evEdit) return;
     const name = evEdit.name.trim();
     const place = evEdit.place.trim();
+    // Date inputs already yield YYYY-MM-DD; avoid Date round-trips that shift the day.
+    const starts_at = evEdit.d1 || undefined;
+    const ends_at = evEdit.d2 || undefined;
     try {
-      await updateEventMetadata(eventId, { name, place });
+      await updateEventMetadata(eventId, {
+        name,
+        place,
+        ...(starts_at ? { starts_at } : {}),
+        ...(ends_at ? { ends_at } : {}),
+      });
     } catch (e) {
       setMemberToast(e instanceof Error ? e.message : "更新活動資料失敗");
       return;
     }
-    setEvData((prev) => prev ? { ...prev, name, place } : prev);
+    setEvData((prev) => prev
+      ? {
+          ...prev,
+          name,
+          place,
+          starts_at: starts_at ?? prev.starts_at,
+          ends_at: ends_at ?? prev.ends_at,
+        }
+      : prev);
     setEvEdit(null);
   };
 
@@ -175,7 +223,7 @@ export default function GroupPage() {
               <IconButton
                 variant="sm"
                 title="編輯"
-                onClick={() => setEvEdit({ name: evData.name, place: evData.place, d1: "", t1: "", d2: "", t2: "" })}
+                onClick={() => setEvEdit(toEventEdit(evData))}
               >
                 <EditIcon size={16} />
               </IconButton>
@@ -205,6 +253,36 @@ export default function GroupPage() {
                 error={!evEdit.name.trim()}
               />
               {!evEdit.name.trim() && <div className="field-err">請輸入活動名稱</div>}
+            </div>
+            <div>
+              <div className="field-label">活動時間</div>
+              <div className="flex wrap items-center gap-10">
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                  <DatePicker
+                    dateValue={evEdit.d1}
+                    combinedValue={evEdit.d1 && evEdit.t1 ? `${evEdit.d1}T${evEdit.t1}` : ""}
+                    onDateChange={(e) => patchEvEdit({ d1: e.target.value })}
+                    onCombinedChange={(e) => {
+                      const [d, t] = e.target.value.split("T");
+                      patchEvEdit({ d1: d, t1: t || "" });
+                    }}
+                    onClearDate={() => patchEvEdit({ d1: "", t1: "" })}
+                  />
+                </div>
+                <span className="text3 fs14">～</span>
+                <div style={{ flex: "1 1 280px", minWidth: 0 }}>
+                  <DatePicker
+                    dateValue={evEdit.d2}
+                    combinedValue={evEdit.d2 && evEdit.t2 ? `${evEdit.d2}T${evEdit.t2}` : ""}
+                    onDateChange={(e) => patchEvEdit({ d2: e.target.value })}
+                    onCombinedChange={(e) => {
+                      const [d, t] = e.target.value.split("T");
+                      patchEvEdit({ d2: d, t2: t || "" });
+                    }}
+                    onClearDate={() => patchEvEdit({ d2: "", t2: "" })}
+                  />
+                </div>
+              </div>
             </div>
             <div>
               <div className="field-label">活動地點</div>
@@ -318,26 +396,28 @@ export default function GroupPage() {
                       <div>
                         <div className="field-label" style={{ fontSize: 16, marginBottom: 6 }}>身分</div>
                         <div className="flex wrap gap-8">
-                          {(["主辦者", "協辦者", "參與者"] as const).map((r) => (
-                            <button
-                              key={r}
-                              className="btn-pill"
-                              style={{
-                                fontSize: 12, padding: "6px 12px",
-                                cursor: i === 0 && r !== "主辦者" ? "not-allowed" : "pointer",
-                                ...(m.role === r
-                                  ? { borderColor: "var(--teal-hover)", background: "rgba(111,183,183,.16)", color: "var(--teal-deep)" }
-                                  : {}),
-                                ...(i === 0 && r !== "主辦者" ? { opacity: 0.5 } : {}),
-                              }}
-                              onClick={() => {
-                                if (i === 0 && r !== "主辦者") return;
-                                updateMember(i, { role: r });
-                              }}
-                            >
-                              {r}
-                            </button>
-                          ))}
+                          {ROLE_OPTIONS.map((role) => {
+                            const disabled = isRoleDisabled(i, role);
+                            const selected = m.role === role;
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                className="btn-pill"
+                                disabled={disabled}
+                                style={{
+                                  fontSize: 12,
+                                  padding: "6px 12px",
+                                  cursor: disabled ? "not-allowed" : "pointer",
+                                  opacity: disabled ? 0.5 : undefined,
+                                  ...(selected ? ROLE_SELECTED_STYLE : {}),
+                                }}
+                                onClick={() => updateMember(i, { role })}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       <div>
