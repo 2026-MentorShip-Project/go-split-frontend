@@ -15,9 +15,9 @@ function reason(trace: Trace): string {
   const conds = (trace.hit_cond_tags ?? []).join("、");
   switch (trace.kind) {
     case "excluded":
-      return `${conds}，不計入`;
+      return `不計入（${(trace.hit_cond_tags ?? []).map((t) => `#${t}`).join(" ")}）`;
     case "excluded-rest":
-      return "其他人員，不計入";
+      return "不計入（其他人員）";
     case "weighted":
       return `${conds}，權重 ×${trace.weight}`;
     case "rest":
