@@ -268,6 +268,13 @@ export async function deleteItemTag(eventId: number, label: string): Promise<voi
   }
 }
 
+export async function renameItemTag(eventId: number, label: string, to: string): Promise<void> {
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}/tags/items/${encodeURIComponent(label)}`, { label: to });
+  if (!res.ok) {
+    throw new Error(await readApiError(res, "重新命名項目標籤失敗"));
+  }
+}
+
 export async function getCondTags(eventId: number): Promise<string[]> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/conds`);
   if (!res.ok) {
@@ -290,6 +297,13 @@ export async function deleteCondTag(eventId: number, label: string): Promise<voi
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/tags/conds/${encodeURIComponent(label)}`);
   if (!res.ok) {
     throw new Error(await readApiError(res, "刪除條件標籤失敗"));
+  }
+}
+
+export async function renameCondTag(eventId: number, label: string, to: string): Promise<void> {
+  const res = await apiPatch(`${BASE_URL}/events/${eventId}/tags/conds/${encodeURIComponent(label)}`, { label: to });
+  if (!res.ok) {
+    throw new Error(await readApiError(res, "重新命名條件標籤失敗"));
   }
 }
 

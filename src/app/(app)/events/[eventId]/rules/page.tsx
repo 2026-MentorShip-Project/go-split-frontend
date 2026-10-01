@@ -19,8 +19,8 @@ import type { Rule, RuleGroup } from "@/lib/types";
 import { roleFromApi } from "@/api/mombers";
 import {
   getEvent,
-  getItemTags, addItemTag, deleteItemTag,
-  getCondTags, addCondTag, deleteCondTag,
+  getItemTags, addItemTag, deleteItemTag, renameItemTag,
+  getCondTags, addCondTag, deleteCondTag, renameCondTag,
   getRules, createRule, updateRuleApi, deleteRuleApi,
 } from "@/api/event";
 
@@ -108,17 +108,13 @@ export default function RulesPage() {
     setItemTags(updated);
     setTagEdit(null);
     try {
-      let labels: string[];
       if (isNew) {
-        labels = await addItemTag(eventId, newVal);
+        setItemTags(await addItemTag(eventId, newVal));
       } else if (newVal !== oldVal) {
-        labels = await addItemTag(eventId, newVal);
-        await deleteItemTag(eventId, oldVal);
-        labels = labels.filter((l) => l !== oldVal);
-      } else {
-        return;
+        await renameItemTag(eventId, oldVal, newVal);
+        setRules(await getRules(eventId));
+        setUsage({ ...usage, [newVal]: usage[oldVal] ?? 0 });
       }
-      setItemTags(labels);
     } catch {
       setItemTags(await getItemTags(eventId).catch(() => itemTags));
     }
@@ -149,17 +145,13 @@ export default function RulesPage() {
     setCondTags(updated);
     setTagEdit(null);
     try {
-      let labels: string[];
       if (isNew) {
-        labels = await addCondTag(eventId, newVal);
+        setCondTags(await addCondTag(eventId, newVal));
       } else if (newVal !== oldVal) {
-        labels = await addCondTag(eventId, newVal);
-        await deleteCondTag(eventId, oldVal);
-        labels = labels.filter((l) => l !== oldVal);
-      } else {
-        return;
+        await renameCondTag(eventId, oldVal, newVal);
+        setRules(await getRules(eventId));
+        setMembers(members.map((m) => ({ ...m, tags: m.tags.map((t) => (t === oldVal ? newVal : t)) })));
       }
-      setCondTags(labels);
     } catch {
       setCondTags(await getCondTags(eventId).catch(() => condTags));
     }
