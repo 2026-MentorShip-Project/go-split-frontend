@@ -59,6 +59,7 @@ export default function RulesPage() {
   const setResplitAsk = useStore((s) => s.setResplitAsk);
 
   const [usage, setUsage] = useState<Record<string, number>>({});
+  const [archived, setArchived] = useState(false);
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -70,7 +71,7 @@ export default function RulesPage() {
   const secEdit = useStore((s) => s.secEdit);
   const setSecEdit = useStore((s) => s.setSecEdit);
 
-  const canEditRules = role === "host";
+  const canEditRules = role === "host" && !archived;
 
   useEffect(() => {
     if (!eventId) return;
@@ -79,6 +80,7 @@ export default function RulesPage() {
       .catch(() => {});
     void getEvent(eventId)
       .then((ev) => {
+        setArchived(ev.archived);
         setMembers((ev.members ?? []).map((m) => ({
           id: String(m.id),
           name: m.display,
@@ -91,7 +93,7 @@ export default function RulesPage() {
         setUsage(itemTagUsage(ev.items));
       })
       .catch(() => {});
-  }, [eventId]);
+  }, [eventId, setCondTags, setItemTags, setMembers, setRules]);
 
   const handleItemTagSave = async (i: number) => {
     if (!tagEdit) return;
@@ -170,12 +172,13 @@ export default function RulesPage() {
   const itemOpen = !secShut["item"];
   const condOpen = !secShut["cond"];
   const ruleOpen = !secShut["rule"];
-  const itemViewOn = !secEdit["item"];
-  const itemEditOn = secEdit["item"];
-  const condViewOn = !secEdit["cond"];
-  const condEditOn = secEdit["cond"];
-  const ruleViewOn = !secEdit["rule"];
-  const ruleEditOn = secEdit["rule"];
+  // Force view mode when editing is not allowed (e.g. archived).
+  const itemEditOn = Boolean(canEditRules && secEdit["item"]);
+  const itemViewOn = !itemEditOn;
+  const condEditOn = Boolean(canEditRules && secEdit["cond"]);
+  const condViewOn = !condEditOn;
+  const ruleEditOn = Boolean(canEditRules && secEdit["rule"]);
+  const ruleViewOn = !ruleEditOn;
 
   const toggleSection = (key: string) => setSecShut({ [key]: !secShut[key] });
   const toggleEdit = (key: string) => setSecEdit({ [key]: !secEdit[key] });
@@ -288,7 +291,7 @@ export default function RulesPage() {
           padding: "12px 14px", borderRadius: 8, background: "var(--bg-neutral)",
           fontSize: 14, color: "var(--text2)", lineHeight: 1.7,
         }}>
-          非主辦者／協辦者不可編輯分攤規則
+          {archived ? "活動已封存，無法編輯分攤規則" : "非主辦者／協辦者不可編輯分攤規則"}
         </div>
       )}
 
