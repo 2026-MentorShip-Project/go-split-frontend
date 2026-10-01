@@ -180,6 +180,11 @@ export default function RulesPage() {
   const toggleSection = (key: string) => setSecShut({ [key]: !secShut[key] });
   const toggleEdit = (key: string) => setSecEdit({ [key]: !secEdit[key] });
 
+  const itemTagsInRules = new Set(rules.map((r) => r.tag).filter(Boolean));
+  const condTagsInRules = new Set(
+    rules.flatMap((r) => (r.groups ?? []).flatMap((g) => g.conds ?? [])),
+  );
+
   const handleAddItemTag = () => {
     setItemTags([...itemTags, ""]);
     setTagEdit({ kind: "item", i: itemTags.length, value: "", isNew: true });
@@ -368,6 +373,7 @@ export default function RulesPage() {
               );
             }
             if (isMenu) {
+              const locked = itemTagsInRules.has(t);
               return (
                 <span key={i} style={{
                   position: "relative", display: "flex", alignItems: "center", gap: 1,
@@ -382,13 +388,16 @@ export default function RulesPage() {
                     ⋮
                   </button>
                   <span className="dropdown-menu" style={{ left: 0, top: "calc(100% + 6px)" }}>
-                    <button onClick={() => void handleDeleteItemTag(t)}>
+                    <button disabled={locked} onClick={() => void handleDeleteItemTag(t)}>
                       <TrashIcon size={14} />刪除
                     </button>
-                    <button onClick={() => {
-                      setTagMenu(null);
-                      setTagEdit({ kind: "item", i, value: t });
-                    }}>
+                    <button
+                      disabled={locked}
+                      onClick={() => {
+                        setTagMenu(null);
+                        setTagEdit({ kind: "item", i, value: t });
+                      }}
+                    >
                       <EditIcon size={14} />編輯
                     </button>
                   </span>
@@ -465,6 +474,7 @@ export default function RulesPage() {
               );
             }
             if (isMenu) {
+              const locked = condTagsInRules.has(t);
               return (
                 <span key={i} style={{
                   position: "relative", display: "flex", alignItems: "center", gap: 1,
@@ -479,13 +489,16 @@ export default function RulesPage() {
                     ⋮
                   </button>
                   <span className="dropdown-menu" style={{ left: 0, top: "calc(100% + 6px)" }}>
-                    <button onClick={() => void handleDeleteCondTag(t)}>
+                    <button disabled={locked} onClick={() => void handleDeleteCondTag(t)}>
                       <TrashIcon size={14} />刪除
                     </button>
-                    <button onClick={() => {
-                      setTagMenu(null);
-                      setTagEdit({ kind: "cond", i, value: t });
-                    }}>
+                    <button
+                      disabled={locked}
+                      onClick={() => {
+                        setTagMenu(null);
+                        setTagEdit({ kind: "cond", i, value: t });
+                      }}
+                    >
                       <EditIcon size={14} />編輯
                     </button>
                   </span>
