@@ -7,7 +7,8 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import { BackIcon, CheckIcon } from "@/components/icons";
 import DatePicker from "@/components/ui/DatePicker";
-import { createEvent, getTemplates, TemplateItem } from "@/api/event";
+import TemplateSummaryBar from "@/components/features/TemplateSummaryBar";
+import { createEvent, getTemplates, getTemplateSummary, TemplateItem, TemplateSummary } from "@/api/event";
 
 export default function CreateEventPage() {
   const router = useRouter();
@@ -22,10 +23,20 @@ export default function CreateEventPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, TemplateSummary>>({});
+  const summary = summaries[ev.template];
 
   useEffect(() => {
     void getTemplates().then(setTemplates).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (summary) return;
+    const label = ev.template;
+    void getTemplateSummary(label)
+      .then((s) => setSummaries((prev) => ({ ...prev, [label]: s })))
+      .catch(() => {});
+  }, [ev.template, summary]);
 
   const evNameErr = evNameTouched && !ev.name.trim();
 
@@ -172,6 +183,7 @@ export default function CreateEventPage() {
               </button>
             ))}
           </div>
+          {summary && <TemplateSummaryBar summary={summary} />}
         </div>
       </div>
     </div>

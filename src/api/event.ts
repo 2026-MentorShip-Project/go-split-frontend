@@ -223,6 +223,25 @@ export async function getTemplates(): Promise<TemplateItem[]> {
   return data.templates ?? [];
 }
 
+export interface TemplateSummary {
+  label: string;
+  description: string;
+  soon: boolean;
+  item_tag_count: number;
+  cond_tag_count: number;
+  rule_count: number;
+  rule_group_count: number;
+  rule_tags: string[];
+}
+
+export async function getTemplateSummary(label: string): Promise<TemplateSummary> {
+  const res = await apiFetch(`${BASE_URL}/templates/summary?${new URLSearchParams({ label })}`);
+  if (!res.ok) {
+    throw new Error(await readApiError(res, "取得模板摘要失敗"));
+  }
+  return res.json();
+}
+
 // Settings 
 export async function getItemTags(eventId: number): Promise<string[]> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/tags/items`);
