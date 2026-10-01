@@ -5,6 +5,7 @@ interface SidebarProps {
   activeScreen: string;
   isHost: boolean;
   isGuest: boolean;
+  isArchived?: boolean;
   showNav: boolean;
 }
 
@@ -23,8 +24,11 @@ export default function Sidebar({
   activeScreen,
   isHost,
   isGuest,
+  isArchived = false,
   showNav,
 }: SidebarProps) {
+  const showHostItems = isHost && !isArchived;
+
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
@@ -56,7 +60,7 @@ export default function Sidebar({
             ))}
           </nav>
 
-          {isHost && (
+          {showHostItems && (
             <>
               <div className="sidebar-divider" />
               <div className="sidebar-label">管理</div>

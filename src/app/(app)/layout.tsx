@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
@@ -37,6 +37,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
   const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
+  // Track which eventId the archived flag belongs to, so we never reset state
+  // synchronously in an effect (and avoid stale values while switching events).
+  const [archivedMeta, setArchivedMeta] = useState<{ eventId: string; archived: boolean } | null>(null);
+  const isArchived = archivedMeta?.eventId === eventId && archivedMeta.archived;
 
   useEffect(() => {
     if (!isGuest) return;
@@ -64,9 +68,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!eventId) return;
+
+    let cancelled = false;
     getEvent(Number(eventId))
-      .then((ev) => setRole(ev.my_role as RoleType))
+      .then((ev) => {
+        if (cancelled) return;
+        setRole(ev.my_role as RoleType);
+        setArchivedMeta({ eventId, archived: ev.archived });
+      })
       .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
   }, [eventId, setRole]);
 
   const activeScreen = useMemo(() => {
@@ -110,6 +124,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               activeScreen={activeScreen}
               isHost={isHost}
               isGuest={isGuest}
+              isArchived={isArchived}
               showNav={showNav}
             />
           )}
@@ -124,6 +139,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             activeScreen={activeScreen}
             isHost={isHost}
             isGuest={isGuest}
+            isArchived={isArchived}
           />
         )}
       </div>
