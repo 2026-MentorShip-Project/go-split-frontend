@@ -8,6 +8,7 @@ interface DrawerProps {
   activeScreen: string;
   isHost: boolean;
   isGuest: boolean;
+  isArchived?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ export default function Drawer({
   activeScreen,
   isHost,
   isGuest,
+  isArchived = false,
 }: DrawerProps) {
   if (!open) return null;
 
@@ -36,6 +38,8 @@ export default function Drawer({
     onNavigate(screen);
     onClose();
   };
+
+  const showHostItems = isHost && !isArchived;
 
   return (
     <div className="drawer-root">
@@ -68,7 +72,7 @@ export default function Drawer({
               </li>
             ))}
 
-            {isHost && (
+            {showHostItems && (
               <>
                 {HOST_ITEMS.map((item) => (
                   <li key={item.key}>
