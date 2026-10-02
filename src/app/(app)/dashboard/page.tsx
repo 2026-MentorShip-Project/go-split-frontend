@@ -8,6 +8,7 @@ import Input from "@/components/ui/Input";
 import { roleName, fmtIsoDatetime } from "@/lib/formatters";
 import { getEvents, joinEvent, type EventListItem } from "@/api/event";
 import { logout } from "@/api/auth";
+import { ROUTES } from "@/lib/routes";
 
 export default function HomePage() {
   const router = useRouter();
@@ -85,6 +86,14 @@ export default function HomePage() {
     }
   }, [code, router, setCur]);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } finally {
+      window.location.href = ROUTES.LOGIN;
+    }
+  }, []);
+
   return (
     <div className="page-shell">
       <div className="topbar">
@@ -108,7 +117,7 @@ export default function HomePage() {
               <button
                 className="btn-pill"
                 style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--ln-control)" }}
-                onClick={() => { logout().finally(() => { window.location.href = "/login"; }); }}
+                onClick={handleLogout}
               >
                 登出
               </button>
@@ -187,7 +196,7 @@ export default function HomePage() {
               <span className="pill-neutral">{roleName(ev.role as import("@/lib/types").RoleType)}</span>
             </div>
             <div className="mt-6 fs12 text3">
-              {fmtIsoDatetime(ev.starts_at)} · {ev.place} · {ev.member_count} 人參與 · {ev.settled ? '' : '已結帳，待繳款'}
+              {fmtIsoDatetime(ev.starts_at)} · {ev.place} · {ev.member_count} 人參與 {ev.settled ? '· 已結帳，待繳款' : null}
             </div>
           </button>
         ))}
