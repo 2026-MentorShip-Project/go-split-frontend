@@ -16,14 +16,9 @@ import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from
 import type { EventDetailDetail } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
+import { PAYER_ABSORBS_NOTE, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
-
-const INVALID_SPLIT: Record<string, string> = {
-  "no-participant": "沒有人分攤這筆，結算時會被擋下",
-  "custom-mismatch": "指定金額加總與品項金額不符",
-  "custom-overflow": "指定金額超過品項金額",
-};
 
 interface LocalDetail {
   id?: number;
@@ -35,6 +30,7 @@ interface LocalDetail {
   // custom amounts as fixed overrides, so posting these would pin the split.
   shares: Record<string, number>;
   invalid: string | null;
+  payerAbsorbs: boolean;
   customAmounts: Record<string, number>;
   manualMemberIds: number[] | null;
 }
@@ -60,6 +56,7 @@ function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
     note: d.note || "",
     shares,
     invalid: d.allocation && d.allocation.validity !== "ok" ? d.allocation.validity : null,
+    payerAbsorbs: d.allocation?.shares.some((s) => s.trace?.kind === "payer-absorbs") ?? false,
     customAmounts: d.custom_amounts ?? {},
     manualMemberIds: d.manual_member_ids ?? null,
   };
@@ -80,31 +77,20 @@ function tagHasRule(tags: string[], rules: Rule[]): boolean {
   return tags.some((t) => rules.some((r) => r.tag === t));
 }
 
-function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[]): LocalDetail {
+function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[], payerId: string): LocalDetail {
   try {
-    const result = detailShares(toItemDetail(detail), members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      const shares: Record<string, number> = {};
-      for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
-      return {
-        ...detail,
-        shares,
-        invalid: result.validity !== "ok" ? result.validity : null,
-      };
-    }
+    const result = detailShares(toItemDetail(detail), members, rules, payerId);
+    const shares: Record<string, number> = {};
+    for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
+    return {
+      ...detail,
+      shares,
+      invalid: result.validity !== "ok" ? result.validity : null,
+      payerAbsorbs: result.payerAbsorbs,
+    };
   } catch {
-    // fall through
+    return detail;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) {
-    return { ...detail, shares: {}, invalid: "no-participant" };
-  }
-  return {
-    ...detail,
-    shares: { [host.id]: num(detail.amount) },
-    invalid: null,
-  };
 }
 
 function buildShareRows(
@@ -112,35 +98,21 @@ function buildShareRows(
   members: Member[],
   rules: Rule[],
   engineReady: boolean,
+  payerId: string,
 ): ShareRow[] | null {
   if (!engineReady || members.length === 0) return null;
-
-  const total = num(detail.amount);
-
   try {
-    const result = detailShares(toItemDetail(detail), members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      return result.inc.map((m) => ({
-        id: m.id,
-        name: m.name,
-        you: !!m.you,
-        tags: m.tags ?? [],
-        amount: result.map[m.id] ?? 0,
-      }));
-    }
+    const result = detailShares(toItemDetail(detail), members, rules, payerId);
+    return result.inc.map((m) => ({
+      id: m.id,
+      name: m.name,
+      you: !!m.you,
+      tags: m.tags ?? [],
+      amount: result.map[m.id] ?? 0,
+    }));
   } catch {
-    // fall through to host fallback
+    return null;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) return [];
-  return [{
-    id: host.id,
-    name: host.name,
-    you: !!host.you,
-    tags: host.tags ?? [],
-    amount: total,
-  }];
 }
 
 function selectedMemberIds(detail: LocalDetail, members: Member[]): number[] {
@@ -177,6 +149,7 @@ export default function ItemDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [payerId, setPayerId] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -187,6 +160,7 @@ export default function ItemDetailPage() {
     ])
       .then(([item, ev, tags, rl]) => {
         setDetails(item.details.map(apiDetailToLocal));
+        setPayerId(String(item.payer_member_id));
         setMembers((ev.members ?? []).map((m) => ({
           id: String(m.id),
           name: m.display,
@@ -216,7 +190,7 @@ export default function ItemDetailPage() {
       if (i !== detailIdx) return d;
       let next: LocalDetail = { ...d, ...patch };
       if (recalc && engineReady && members.length > 0) {
-        next = applyShareResult(next, members, rules);
+        next = applyShareResult(next, members, rules, payerId);
       }
       return next;
     }));
@@ -320,7 +294,7 @@ export default function ItemDetailPage() {
   };
 
   const renderSharePreview = (detail: LocalDetail, index: number) => {
-    const rows = buildShareRows(detail, members, rules, engineReady);
+    const rows = buildShareRows(detail, members, rules, engineReady, payerId);
     const open = shareOpen[index] !== false;
     const count = rows?.length ?? 0;
 
@@ -501,7 +475,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty}
+                disabled={saving || !dirty || details.some((d) => d.invalid)}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
@@ -561,8 +535,11 @@ export default function ItemDetailPage() {
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
                       {d.invalid && (
                         <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
-                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                          {splitIssueText(d.invalid)}
                         </div>
+                      )}
+                      {d.payerAbsorbs && (
+                        <div className="fs12 mt-12" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
                       )}
                       {renderSharePreview(d, i)}
                     </>
@@ -664,8 +641,11 @@ export default function ItemDetailPage() {
                       </div>
                       {d.invalid && (
                         <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
-                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                          {splitIssueText(d.invalid)}
                         </div>
+                      )}
+                      {d.payerAbsorbs && (
+                        <div className="fs12 mt-12" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
                       )}
                       {renderShareEditor(d, i)}
                     </>

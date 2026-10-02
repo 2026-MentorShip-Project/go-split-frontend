@@ -144,6 +144,8 @@ export interface ShareResult {
   diff: number;
   overflow: boolean;
   validity: 'ok' | 'no-participant' | 'custom-mismatch' | 'custom-overflow';
+  /** Nobody matched, so the engine charged the payer the whole amount. */
+  payerAbsorbs: boolean;
 }
 
 export interface FlowLine {

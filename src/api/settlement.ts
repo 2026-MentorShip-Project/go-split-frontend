@@ -11,7 +11,7 @@ export interface DetailShare {
   item_id: number;
   detail_id: number;
   amount: number;
-  shares: { member_id: number; amount: number }[];
+  shares: { member_id: number; amount: number; trace?: { kind: string } }[];
 }
 
 export interface SharesResponse {

@@ -27,9 +27,10 @@ function personHasAllConditions(person: Member, conditions: string[]): boolean {
 export function detailShares(
   detail: ItemDetail,
   members: Member[],
-  rules: Rule[]
+  rules: Rule[],
+  payerId?: string,
 ): ShareResult {
-  const result = splitOneDetail(detail, members, rules);
+  const result = splitOneDetail(detail, members, rules, payerId);
   const byEngineId = membersByEngineId(members);
 
   const includedMembers: Member[] = [];
@@ -66,6 +67,7 @@ export function detailShares(
     diff: result.diff ?? 0,
     overflow: result.validity === 'custom-overflow',
     validity: result.validity,
+    payerAbsorbs: result.shares.some((share) => share.trace.kind === 'payer-absorbs'),
   };
 }
 

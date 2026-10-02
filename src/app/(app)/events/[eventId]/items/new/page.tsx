@@ -11,6 +11,7 @@ import { money, num } from "@/lib/formatters";
 import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
+import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -22,40 +23,34 @@ interface ShareRow {
   amount: number;
 }
 
-function buildShareRows(
+interface SharePreview {
+  rows: ShareRow[];
+  payerAbsorbs: boolean;
+}
+
+function buildSharePreview(
   detail: ItemDetail,
   members: Member[],
   rules: Rule[],
   engineReady: boolean,
-): ShareRow[] | null {
+  payerId: string | undefined,
+): SharePreview | null {
   if (!engineReady || members.length === 0) return null;
-
-  const total = typeof detail.amount === "number" ? detail.amount : num(String(detail.amount));
-
   try {
-    const result = detailShares(detail, members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      return result.inc.map((m) => ({
+    const result = detailShares(detail, members, rules, payerId);
+    return {
+      rows: result.inc.map((m) => ({
         id: m.id,
         name: m.name,
         you: !!m.you,
         tags: m.tags ?? [],
         amount: result.map[m.id] ?? 0,
-      }));
-    }
+      })),
+      payerAbsorbs: result.payerAbsorbs,
+    };
   } catch {
-    // fall through to host fallback
+    return null;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) return [];
-  return [{
-    id: host.id,
-    name: host.name,
-    you: !!host.you,
-    tags: host.tags ?? [],
-    amount: total,
-  }];
 }
 
 export default function AddItemPage() {
@@ -100,6 +95,9 @@ export default function AddItemPage() {
       .catch(console.error);
   }, [eventId, setItemTags]);
 
+  // The person adding the card pays it, so they absorb lines nobody shares.
+  const payerId = myMemberId === null ? undefined : String(myMemberId);
+
   const draftTotal = draft.details.reduce(
     (a, d) => a + (typeof d.amount === "number" ? d.amount : num(String(d.amount))),
     0,
@@ -136,7 +134,8 @@ export default function AddItemPage() {
   };
 
   const renderSharePreview = (detail: ItemDetail, index: number) => {
-    const rows = buildShareRows(detail, members, rules, engineReady);
+    const preview = buildSharePreview(detail, members, rules, engineReady, payerId);
+    const rows = preview?.rows ?? null;
     const open = shareOpen[index] !== false;
     const count = rows?.length ?? 0;
 
@@ -156,6 +155,9 @@ export default function AddItemPage() {
             共計 {rows === null ? "…" : count} 人分攤
           </button>
         </div>
+        {preview?.payerAbsorbs && (
+          <div className="fs12 mt-10" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
+        )}
         {open && rows && (
           <div className="grid-cards mt-10">
             {rows.map((row) => (
