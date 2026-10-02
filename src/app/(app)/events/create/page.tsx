@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
@@ -25,6 +25,15 @@ export default function CreateEventPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [summaries, setSummaries] = useState<Record<string, TemplateSummary>>({});
   const summary = summaries[ev.template];
+  const didCreate = useRef(false);
+
+  // Clear the form only once this page is gone: resetting before navigating
+  // would show 自訂 and an empty name until the event page loads.
+  useEffect(() => () => {
+    if (!didCreate.current) return;
+    setEv({ name: "", date: "", place: "", template: "自訂", d1: "", t1: "", d2: "", t2: "" });
+    setEvNameTouched(false);
+  }, [setEv, setEvNameTouched]);
 
   useEffect(() => {
     void getTemplates().then(setTemplates).catch(() => {});
@@ -68,8 +77,7 @@ export default function CreateEventPage() {
       setEvents(newEvents);
       setCur(created.id);
       setCode(created.invite_code);
-      setEv({ name: "", date: "", place: "", template: "自訂", d1: "", t1: "", d2: "", t2: "" });
-      setEvNameTouched(false);
+      didCreate.current = true;
       router.push(`/events/${created.id}`);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : "建立活動失敗");
