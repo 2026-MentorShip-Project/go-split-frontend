@@ -7,7 +7,8 @@ import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
 import { money } from "@/lib/formatters";
 import { getEvent, archiveEvent, type EventDetail } from "@/api/event";
-import { getShares, getTransfers, InvalidSplitsError, type SharesResponse, type TransfersResponse } from "@/api/settlement";
+import { getShares, getTransfers, InvalidSplitsError, type InvalidSplitLine, type SharesResponse, type TransfersResponse } from "@/api/settlement";
+import InvalidSplitsNotice from "@/components/features/InvalidSplitsNotice";
 
 export default function PaymentsPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function PaymentsPage() {
   const [transfers, setTransfers] = useState<TransfersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [unsplit, setUnsplit] = useState(false);
+  const [invalid, setInvalid] = useState<InvalidSplitLine[] | null>(null);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
@@ -42,7 +43,7 @@ export default function PaymentsPage() {
         setTransfers(transfersData);
       } catch (e) {
         if (cancelled) return;
-        if (e instanceof InvalidSplitsError) setUnsplit(true);
+        if (e instanceof InvalidSplitsError) setInvalid(e.lines);
         else setError(e instanceof Error ? e.message : "載入失敗");
       } finally {
         if (!cancelled) setLoading(false);
@@ -72,7 +73,7 @@ export default function PaymentsPage() {
   };
 
   if (loading) return <div className="page-shell">載入中…</div>;
-  if (error || !ev || (!unsplit && (!shares || !transfers))) return <div className="page-shell">{error ?? "載入失敗"}</div>;
+  if (error || !ev || (!invalid && (!shares || !transfers))) return <div className="page-shell">{error ?? "載入失敗"}</div>;
 
   const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));
   const transferList = transfers?.transfers ?? [];
@@ -88,13 +89,8 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {unsplit ? (
-        <div className="empty-box">
-          分帳尚未完成，無法計算成果，請去活動款項編輯
-          <div className="mt-10">
-            <Button onClick={() => router.push(`/events/${eventId}`)}>前往活動款項</Button>
-          </div>
-        </div>
+      {invalid ? (
+        <InvalidSplitsNotice event={ev} lines={invalid} />
       ) : (
         <div className="grid-cards mt-10">
           {transferList.map((t) => {
@@ -118,7 +114,7 @@ export default function PaymentsPage() {
         </div>
       )}
 
-      {!ev.archived && !unsplit && (
+      {!ev.archived && !invalid && (
         <Button className="mt-20" onClick={() => setShowArchiveDialog(true)}>
           結清活動
         </Button>
