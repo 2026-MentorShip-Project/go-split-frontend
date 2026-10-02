@@ -6,11 +6,18 @@ import { useStore } from "@/store";
 import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
-import { BackIcon, CheckIcon, PlusIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon } from "@/components/icons";
+import Dot from "@/components/ui/Dot";
+import {
+  BackIcon, CheckIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon,
+  LockIcon, UnlockIcon,
+} from "@/components/icons";
 import { money, num } from "@/lib/formatters";
-import { getEvent, getItem, updateItem, deleteItem, getItemTags } from "@/api/event";
+import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from "@/api/event";
 import type { EventDetailDetail } from "@/api/event";
-import type { EventDetailMember } from "@/api/mombers";
+import { roleFromApi } from "@/api/mombers";
+import { detailShares } from "@/lib/calculations";
+import { useSplitEngine } from "@/hooks/useSplitEngine";
+import type { ItemDetail, Member, Rule } from "@/lib/types";
 
 const INVALID_SPLIT: Record<string, string> = {
   "no-participant": "沒有人分攤這筆，結算時會被擋下",
@@ -32,6 +39,14 @@ interface LocalDetail {
   manualMemberIds: number[] | null;
 }
 
+interface ShareRow {
+  id: string;
+  name: string;
+  you: boolean;
+  tags: string[];
+  amount: number;
+}
+
 function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
   const shares = d.allocation?.shares?.reduce<Record<string, number>>(
     (acc, s) => { acc[String(s.member_id)] = s.amount; return acc; },
@@ -50,11 +65,99 @@ function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
   };
 }
 
+function toItemDetail(d: LocalDetail): ItemDetail {
+  return {
+    name: d.name,
+    amount: d.amount,
+    tags: d.tags,
+    note: d.note,
+    ids: d.manualMemberIds?.map(String) ?? null,
+    custom: Object.keys(d.customAmounts).length > 0 ? d.customAmounts : undefined,
+  };
+}
+
+function tagHasRule(tags: string[], rules: Rule[]): boolean {
+  return tags.some((t) => rules.some((r) => r.tag === t));
+}
+
+function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[]): LocalDetail {
+  try {
+    const result = detailShares(toItemDetail(detail), members, rules);
+    if (result.inc.length > 0 && result.validity !== "no-participant") {
+      const shares: Record<string, number> = {};
+      for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
+      return {
+        ...detail,
+        shares,
+        invalid: result.validity !== "ok" ? result.validity : null,
+      };
+    }
+  } catch {
+    // fall through
+  }
+
+  const host = members.find((m) => m.role === "主辦者") ?? members[0];
+  if (!host) {
+    return { ...detail, shares: {}, invalid: "no-participant" };
+  }
+  return {
+    ...detail,
+    shares: { [host.id]: num(detail.amount) },
+    invalid: null,
+  };
+}
+
+function buildShareRows(
+  detail: LocalDetail,
+  members: Member[],
+  rules: Rule[],
+  engineReady: boolean,
+): ShareRow[] | null {
+  if (!engineReady || members.length === 0) return null;
+
+  const total = num(detail.amount);
+
+  try {
+    const result = detailShares(toItemDetail(detail), members, rules);
+    if (result.inc.length > 0 && result.validity !== "no-participant") {
+      return result.inc.map((m) => ({
+        id: m.id,
+        name: m.name,
+        you: !!m.you,
+        tags: m.tags ?? [],
+        amount: result.map[m.id] ?? 0,
+      }));
+    }
+  } catch {
+    // fall through to host fallback
+  }
+
+  const host = members.find((m) => m.role === "主辦者") ?? members[0];
+  if (!host) return [];
+  return [{
+    id: host.id,
+    name: host.name,
+    you: !!host.you,
+    tags: host.tags ?? [],
+    amount: total,
+  }];
+}
+
+function selectedMemberIds(detail: LocalDetail, members: Member[]): number[] {
+  if (detail.manualMemberIds) return detail.manualMemberIds;
+  const fromShares = members
+    .filter((m) => Object.prototype.hasOwnProperty.call(detail.shares, m.id))
+    .map((m) => Number(m.id));
+  if (fromShares.length > 0) return fromShares;
+  return members.map((m) => Number(m.id));
+}
+
 export default function ItemDetailPage() {
   const router = useRouter();
   const params = useParams();
   const eventId = Number(params.eventId);
   const itemId = Number(params.itemId);
+  const { ready: engineReady } = useSplitEngine();
 
   const editDetail = useStore((s) => s.editDetail);
   const setEditDetail = useStore((s) => s.setEditDetail);
@@ -65,8 +168,9 @@ export default function ItemDetailPage() {
   const setDelAsk = useStore((s) => s.setDelAsk);
 
   const [details, setDetails] = useState<LocalDetail[]>([]);
-  const [members, setMembers] = useState<EventDetailMember[]>([]);
-  const [collapsedShares, setCollapsedShares] = useState<Set<number>>(new Set());
+  const [members, setMembers] = useState<Member[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [shareOpen, setShareOpen] = useState<Record<number, boolean>>({});
   const [myRole, setMyRole] = useState("");
   const [settled, setSettled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -79,10 +183,21 @@ export default function ItemDetailPage() {
       getItem(eventId, itemId),
       getEvent(eventId),
       getItemTags(eventId),
+      getRules(eventId),
     ])
-      .then(([item, ev, tags]) => {
+      .then(([item, ev, tags, rl]) => {
         setDetails(item.details.map(apiDetailToLocal));
-        setMembers(ev.members);
+        setMembers((ev.members ?? []).map((m) => ({
+          id: String(m.id),
+          name: m.display,
+          role: roleFromApi(m.role),
+          tags: m.tags ?? [],
+          login: "",
+          guest: m.guest,
+          note: m.note,
+          you: m.you,
+        })));
+        setRules(rl);
         setMyRole(ev.my_role);
         setSettled(ev.settled);
         setItemTags(tags);
@@ -95,19 +210,16 @@ export default function ItemDetailPage() {
   if (error) return <div className="page-shell">{error}</div>;
 
   const canEditItem = !settled && (myRole === "host" || myRole === "co");
-  const total = details.reduce((sum, d) => sum + num(d.amount), 0);
 
-  const updateDetailLocal = (detailIdx: number, patch: Partial<LocalDetail>) => {
-    setDetails((prev) => prev.map((d, i) => (i === detailIdx ? { ...d, ...patch } : d)));
-    setDirty(true);
-  };
-
-  const handleAddDetail = () => {
-    setDetails((prev) => [...prev, {
-      name: "", amount: "", tags: [], note: "",
-      shares: {}, customAmounts: {}, manualMemberIds: null, invalid: null,
-    }]);
-    setEditDetail(details.length);
+  const patchDetail = (detailIdx: number, patch: Partial<LocalDetail>, recalc = false) => {
+    setDetails((prev) => prev.map((d, i) => {
+      if (i !== detailIdx) return d;
+      let next: LocalDetail = { ...d, ...patch };
+      if (recalc && engineReady && members.length > 0) {
+        next = applyShareResult(next, members, rules);
+      }
+      return next;
+    }));
     setDirty(true);
   };
 
@@ -117,19 +229,76 @@ export default function ItemDetailPage() {
     setDirty(true);
   };
 
+  const handleToggleMember = (detailIdx: number, memberId: string) => {
+    const detail = details[detailIdx];
+    if (!detail || tagHasRule(detail.tags, rules)) return;
+
+    const mid = Number(memberId);
+    const current = selectedMemberIds(detail, members);
+    const isOn = current.includes(mid);
+    const nextIds = isOn ? current.filter((id) => id !== mid) : [...current, mid];
+
+    const customAmounts = { ...detail.customAmounts };
+    if (isOn) delete customAmounts[memberId];
+
+    // All selected + no customs → back to automatic (null)
+    const allSelected =
+      nextIds.length === members.length &&
+      members.every((m) => nextIds.includes(Number(m.id)));
+    const manualMemberIds =
+      allSelected && Object.keys(customAmounts).length === 0 ? null : nextIds;
+
+    patchDetail(detailIdx, { manualMemberIds, customAmounts }, true);
+  };
+
+  const handleToggleLock = (detailIdx: number, memberId: string) => {
+    const detail = details[detailIdx];
+    if (!detail || tagHasRule(detail.tags, rules)) return;
+    if (!(memberId in detail.shares)) return;
+
+    const customAmounts = { ...detail.customAmounts };
+    if (memberId in customAmounts) {
+      delete customAmounts[memberId];
+    } else {
+      customAmounts[memberId] = detail.shares[memberId] ?? 0;
+    }
+
+    const current = selectedMemberIds(detail, members);
+    patchDetail(detailIdx, {
+      customAmounts,
+      manualMemberIds: detail.manualMemberIds ?? current,
+    }, true);
+  };
+
+  const handleCustomAmount = (detailIdx: number, memberId: string, raw: string) => {
+    const detail = details[detailIdx];
+    if (!detail || tagHasRule(detail.tags, rules)) return;
+
+    const customAmounts = {
+      ...detail.customAmounts,
+      [memberId]: num(raw),
+    };
+    patchDetail(detailIdx, { customAmounts }, true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       const res = await updateItem(eventId, itemId, {
-        details: details.map((d) => ({
-          id: d.id,
-          name: d.name || "（未命名）",
-          amount: Math.round(num(d.amount)),
-          tag: d.tags[0] ?? "",
-          note: d.note,
-          custom_amounts: Object.keys(d.customAmounts).length > 0 ? d.customAmounts : undefined,
-          manual_member_ids: d.manualMemberIds,
-        })),
+        details: details.map((d) => {
+          const ruled = tagHasRule(d.tags, rules);
+          return {
+            id: d.id,
+            name: d.name || "（未命名）",
+            amount: Math.round(num(d.amount)),
+            tag: d.tags[0] ?? "",
+            note: d.note,
+            custom_amounts: !ruled && Object.keys(d.customAmounts).length > 0
+              ? d.customAmounts
+              : undefined,
+            manual_member_ids: ruled ? null : d.manualMemberIds,
+          };
+        }),
       });
       setDetails(res.details.map(apiDetailToLocal));
       setDirty(false);
@@ -148,6 +317,174 @@ export default function ItemDetailPage() {
     } catch (e) {
       alert(e instanceof Error ? e.message : "刪除款項失敗");
     }
+  };
+
+  const renderSharePreview = (detail: LocalDetail, index: number) => {
+    const rows = buildShareRows(detail, members, rules, engineReady);
+    const open = shareOpen[index] !== false;
+    const count = rows?.length ?? 0;
+
+    return (
+      <div className="card mt-14" style={{ padding: "14px 16px" }}>
+        <div className="flex between items-center gap-10">
+          <button
+            type="button"
+            style={{
+              border: "none", background: "none", padding: 0, display: "flex",
+              alignItems: "center", gap: 6, fontSize: 12, color: "var(--text2)",
+              letterSpacing: ".06em", cursor: "pointer",
+            }}
+            onClick={() => setShareOpen((prev) => ({ ...prev, [index]: !open }))}
+          >
+            <span className="text3 fs12">{open ? "▼" : "▶"}</span>
+            共計 {rows === null ? "…" : count} 人分攤
+          </button>
+        </div>
+        {open && rows && (
+          <div className="grid-cards mt-10">
+            {rows.map((row) => (
+              <div key={row.id} className="flex between items-start gap-8">
+                <div style={{ flex: "none", minWidth: 0 }} className="flex-col gap-4">
+                  <span className="fs14">{row.name}{row.you ? "（你）" : ""}</span>
+                  {row.tags.length > 0 && (
+                    <span className="fs12" style={{ color: "var(--tag-cond-fg)" }}>
+                      {row.tags.map((t) => `#${t}`).join("、")}
+                    </span>
+                  )}
+                </div>
+                <span
+                  className="grow fs14 text2"
+                  style={{ textAlign: "right", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                >
+                  {money(row.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderShareEditor = (detail: LocalDetail, index: number) => {
+    const open = shareOpen[index] !== false;
+    const ruled = tagHasRule(detail.tags, rules);
+    const selectedSet = (() => {
+      if (detail.manualMemberIds) {
+        return new Set(detail.manualMemberIds.map(String));
+      }
+      if (Object.keys(detail.shares).length > 0) {
+        return new Set(Object.keys(detail.shares));
+      }
+      return new Set(members.map((m) => m.id));
+    })();
+
+    const count = [...selectedSet].filter((id) => members.some((m) => m.id === id)).length;
+
+    return (
+      <div className="card mt-14" style={{ padding: "14px 16px" }}>
+        <div className="flex between items-center gap-10">
+          <button
+            type="button"
+            style={{
+              border: "none", background: "none", padding: 0, display: "flex",
+              alignItems: "center", gap: 6, fontSize: 12, color: "var(--text2)",
+              letterSpacing: ".06em", cursor: "pointer",
+            }}
+            onClick={() => setShareOpen((prev) => ({ ...prev, [index]: !open }))}
+          >
+            <span className="text3 fs12">{open ? "▼" : "▶"}</span>
+            共計 {count} 人分攤
+          </button>
+        </div>
+
+        {open && (
+          <div className="flex-col gap-10 mt-12">
+            {members.map((m) => {
+              const isOn = selectedSet.has(m.id);
+              const isCustom = m.id in detail.customAmounts;
+              const amount = detail.shares[m.id] ?? detail.customAmounts[m.id] ?? 0;
+
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    padding: "10px 12px",
+                    border: "1px solid var(--ln-card)",
+                    borderRadius: 8,
+                    background: "#fff",
+                  }}
+                >
+                  <button
+                    type="button"
+                    style={{
+                      flex: 1, minWidth: 0, border: "none", background: "none", padding: 0,
+                      display: "flex", alignItems: "center", gap: 10, textAlign: "left",
+                      cursor: ruled ? "default" : "pointer",
+                    }}
+                    onClick={() => handleToggleMember(index, m.id)}
+                    disabled={ruled}
+                  >
+                    <Dot selected={isOn} />
+                    <span style={{ minWidth: 0 }} className="flex-col gap-4">
+                      <span className="fs14">{m.name}{m.you ? "（你）" : ""}</span>
+                      {m.tags.length > 0 && (
+                        <span className="fs12" style={{ color: "var(--tag-cond-fg)" }}>
+                          {m.tags.map((t) => `#${t}`).join("、")}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+
+                  {!isOn ? (
+                    <span className="fs14 text3" style={{ flex: "none" }}>—</span>
+                  ) : (
+                    <span className="flex items-center gap-6">
+                      <span className="fs12 text2">NT$</span>
+                      <input
+                        style={{
+                          width: 74,
+                          padding: "8px 10px",
+                          border: "1px solid var(--ln-control)",
+                          borderRadius: 6,
+                          fontSize: 14,
+                          fontWeight: 500,
+                          textAlign: "right",
+                          background: isCustom && !ruled ? "#fff" : "var(--bg-neutral)",
+                          color: isCustom && !ruled ? "var(--text)" : "var(--text3)",
+                        }}
+                        readOnly={ruled || !isCustom}
+                        inputMode="numeric"
+                        value={Math.round(amount)}
+                        placeholder={String(Math.round(amount))}
+                        onChange={(e) => handleCustomAmount(index, m.id, e.target.value)}
+                      />
+                      {!ruled && (
+                        <button
+                          type="button"
+                          style={{
+                            flex: "none", width: 32, height: 32, border: "none",
+                            background: "none", color: "var(--text3)", cursor: "pointer",
+                          }}
+                          title={isCustom ? "鎖定以自動分配" : "解鎖以自訂金額"}
+                          onClick={() => handleToggleLock(index, m.id)}
+                        >
+                          {isCustom ? <UnlockIcon size={15} /> : <LockIcon size={15} />}
+                        </button>
+                      )}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -227,27 +564,14 @@ export default function ItemDetailPage() {
                           {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
                         </div>
                       )}
-                      {Object.keys(d.shares).length > 0 && (
-                        <div className="mt-12">
-                          <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤人員</div>
-                          {Object.entries(d.shares).map(([mid, amount]) => {
-                            const member = members.find((m) => String(m.id) === mid);
-                            return (
-                              <div key={mid} className="flex between items-center" style={{ padding: "2px 0" }}>
-                                <span className="fs13">{member?.display ?? mid}</span>
-                                <span className="fs13 text2">{money(amount)}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
+                      {renderSharePreview(d, i)}
                     </>
                   ) : (
                     <>
                       <div className="flex between items-center gap-10">
                         <Input
                           value={d.name}
-                          onChange={(e) => updateDetailLocal(i, { name: e.target.value })}
+                          onChange={(e) => patchDetail(i, { name: e.target.value })}
                           placeholder="品項名稱"
                           style={{ flex: 1, minWidth: 0, padding: 12, fontSize: 14 }}
                         />
@@ -263,7 +587,7 @@ export default function ItemDetailPage() {
                       <div className="flex-col gap-12 mt-12">
                         <Input
                           value={d.amount}
-                          onChange={(e) => updateDetailLocal(i, { amount: e.target.value })}
+                          onChange={(e) => patchDetail(i, { amount: e.target.value }, true)}
                           placeholder="品項金額"
                           inputMode="numeric"
                           style={{ padding: 12, fontSize: 14 }}
@@ -287,7 +611,11 @@ export default function ItemDetailPage() {
                             {d.tags.length > 0 && (
                               <button
                                 style={{ flex: "none", width: 22, height: 22, border: "none", borderRadius: 99, background: "var(--bg-neutral)", color: "var(--text2)", fontSize: 12, cursor: "pointer" }}
-                                onClick={() => updateDetailLocal(i, { tags: [] })}
+                                onClick={() => patchDetail(i, {
+                                  tags: [],
+                                  manualMemberIds: d.manualMemberIds,
+                                  customAmounts: d.customAmounts,
+                                }, true)}
                               >
                                 ×
                               </button>
@@ -308,7 +636,14 @@ export default function ItemDetailPage() {
                                     key={t}
                                     className={`picker-row${d.tags.includes(t) ? " is-sel" : ""}`}
                                     onClick={() => {
-                                      updateDetailLocal(i, { tags: [t] });
+                                      const nextTags = [t];
+                                      const ruled = tagHasRule(nextTags, rules);
+                                      patchDetail(i, {
+                                        tags: nextTags,
+                                        ...(ruled
+                                          ? { manualMemberIds: null, customAmounts: {} }
+                                          : {}),
+                                      }, true);
                                       setTagPick(null);
                                     }}
                                   >
@@ -322,11 +657,17 @@ export default function ItemDetailPage() {
                         </div>
                         <Input
                           value={d.note}
-                          onChange={(e) => updateDetailLocal(i, { note: e.target.value })}
+                          onChange={(e) => patchDetail(i, { note: e.target.value })}
                           placeholder="其他備註"
                           style={{ padding: 12, fontSize: 14 }}
                         />
                       </div>
+                      {d.invalid && (
+                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
+                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                        </div>
+                      )}
+                      {renderShareEditor(d, i)}
                     </>
                   )}
                 </div>
