@@ -11,7 +11,7 @@ import { getEvent } from "@/api/event";
 import type { RoleType } from "@/lib/types";
 
 // Screens with their own tour; keys match the useTour key on that page.
-const TOUR_SCREENS = new Set(["event", "rules"]);
+const TOUR_SCREENS = new Set(["event", "rules", "item-new"]);
 
 function extractEventId(pathname: string | null): string | null {
   if (!pathname) return null;
@@ -97,6 +97,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (pathname === "/dashboard") return "home";
     if (pathname.includes("/group")) return "group";
     if (pathname.includes("/rules")) return "rules";
+    if (pathname.endsWith("/items/new")) return "item-new";
     if (pathname.includes("/payments") || pathname.includes("/settle")) return "payment";
     if (pathname.match(/^\/events\/\d+$/)) return "event";
     return "";
