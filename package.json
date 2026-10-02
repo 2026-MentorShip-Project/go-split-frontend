@@ -15,7 +15,7 @@
     "@go-split/engine": "1.3.0",
     "@react-oauth/google": "^0.13.5",
     "driver.js": "^1.8.0",
-    "next": "16.3.4",
+    "next": "^16.3.8",
     "qrcode.react": "^4.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
