@@ -14,6 +14,15 @@ import { detailShares } from "@/lib/calculations";
 import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const ITEM_NEW_TOUR: TourStep[] = [
+  { target: '[data-tour="item-total"]', title: "一筆款項", description: "由你代墊的一筆支出，例如一張收據。金額會由下方明細自動加總。" },
+  { target: '[data-tour="add-detail"]', title: "新增明細", description: "一張收據可以拆成多筆明細，例如餐點和酒水分開，各自套用不同的分攤方式。" },
+  { target: '[data-tour="detail-tag"]', title: "項目標籤", description: "替明細選一個標籤，就會套用分攤規則中對應的設定；不選則所有人均分。" },
+  { target: '[data-tour="share-preview"]', title: "分攤預覽", description: "即時顯示這筆明細由誰分攤、各自多少。" },
+  { target: '[data-tour="save-item"]', title: "儲存", description: "確認明細後按這裡儲存，款項就會出現在活動中。" },
+];
 
 interface ShareRow {
   id: string;
@@ -73,6 +82,7 @@ export default function AddItemPage() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [shareOpen, setShareOpen] = useState<Record<number, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     Promise.all([getEvent(eventId), getRules(eventId), getItemTags(eventId)])
@@ -92,8 +102,11 @@ export default function AddItemPage() {
         setRules(rl);
         setItemTags(tags);
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setLoaded(true));
   }, [eventId, setItemTags]);
+
+  useTour("item-new", ITEM_NEW_TOUR, loaded);
 
   // The person adding the card pays it, so they absorb lines nobody shares.
   const payerId = myMemberId === null ? undefined : String(myMemberId);
@@ -140,7 +153,7 @@ export default function AddItemPage() {
     const count = rows?.length ?? 0;
 
     return (
-      <div className="card mt-14" style={{ padding: "14px 16px" }}>
+      <div data-tour="share-preview" className="card mt-14" style={{ padding: "14px 16px" }}>
         <div className="flex between items-center gap-10">
           <button
             type="button"
@@ -193,6 +206,7 @@ export default function AddItemPage() {
           </IconButton>
           <span className="topbar-title">新增款項</span>
           <IconButton
+            data-tour="save-item"
             variant="soft"
             title="儲存款項"
             onClick={handleSubmit}
@@ -205,14 +219,14 @@ export default function AddItemPage() {
       </div>
 
       <div className="mt-20">
-        <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "14px 20px" }}>
+        <div data-tour="item-total" className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "14px 20px" }}>
           <span className="fs18 fw500" style={{ flex: "none" }}>本筆款項合計</span>
           <span className="grow fs18 fw700" style={{ textAlign: "right" }}>{money(draftTotal)}</span>
         </div>
 
         <div className="flex items-center between gap-10 mt-20">
           <span className="section-title">明細</span>
-          <IconButton variant="sm" title="新增明細" onClick={handleAddDetail}>
+          <IconButton data-tour="add-detail" variant="sm" title="新增明細" onClick={handleAddDetail}>
             <PlusIcon size={16} />
           </IconButton>
         </div>
@@ -285,7 +299,7 @@ export default function AddItemPage() {
                         style={{ padding: 12, fontSize: 14 }}
                       />
                       {/* Tag picker */}
-                      <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                      <div data-tour="detail-tag" style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 8 }}>
                         <StarIcon size={24} />
                         <div style={{
                           flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8,

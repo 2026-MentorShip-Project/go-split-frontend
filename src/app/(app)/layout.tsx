@@ -10,6 +10,20 @@ import { isEventDetailPage, ROUTES } from "@/lib/routes";
 import { getEvent } from "@/api/event";
 import type { RoleType } from "@/lib/types";
 
+// Pages with their own tour; values match the useTour key on that page.
+const TOUR_PAGES: [RegExp, string][] = [
+  [/^\/events\/\d+$/, "event"],
+  [/^\/events\/\d+\/rules$/, "rules"],
+  [/^\/events\/\d+\/items\/new$/, "item-new"],
+  [/^\/events\/\d+\/group$/, "group"],
+  [/^\/events\/\d+\/settle$/, "settle"],
+];
+
+function tourKeyFor(pathname: string | null): string | null {
+  if (!pathname) return null;
+  return TOUR_PAGES.find(([re]) => re.test(pathname))?.[1] ?? null;
+}
+
 function subscribeStorage(onChange: () => void) {
   window.addEventListener("storage", onChange);
   return () => window.removeEventListener("storage", onChange);
@@ -113,6 +127,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [eventId, setRole]);
 
+  const tourKey = tourKeyFor(pathname);
+
   const activeScreen = useMemo(() => {
     if (!pathname) return "";
     if (pathname === "/dashboard") return "home";
@@ -159,12 +175,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           });
         break;
       case "tour":
-        if (!eventId) break;
-        setTourReplay("event");
-        if (activeScreen !== "event") router.push(ROUTES.EVENTS.DETAIL(eventId));
+        if (tourKey) setTourReplay(tourKey);
         break;
     }
-  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, activeScreen]);
+  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, tourKey]);
 
   return (
     <div
@@ -182,6 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               isGuest={isGuest}
               isArchived={isArchived}
               showNav={showNav}
+              hasTour={tourKey !== null}
             />
           )}
           <div className="app-scroll">{children}</div>
@@ -196,6 +211,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             isHost={isHost}
             isGuest={isGuest}
             isArchived={isArchived}
+            hasTour={tourKey !== null}
           />
         )}
       </div>

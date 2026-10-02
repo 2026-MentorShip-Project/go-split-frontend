@@ -8,6 +8,15 @@ import Dialog from "@/components/ui/Dialog";
 import { patchSettlementNote, settleEvent } from "@/api/settlement";
 import { useSettlementPreview } from "@/hooks/useSettlementPreview";
 import { money } from "@/lib/formatters";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const SETTLE_TOUR: TourStep[] = [
+  { target: '[data-tour="settle-items"]', title: "全部款項", description: "結帳前最後確認一次所有款項與合計金額。" },
+  { target: '[data-tour="settle-splits"]', title: "人員分攤結果", description: "每個人依分攤規則應負擔的金額，以及他代墊了多少。" },
+  { target: '[data-tour="settle-flows"]', title: "人員付款流向", description: "依分攤與代墊結果算出誰該付給誰、付多少。" },
+  { target: '[data-tour="settle-note"]', title: "留言", description: "可以寫上轉帳帳號或提醒，結帳後所有成員都看得到。" },
+  { target: '[data-tour="settle-confirm"]', title: "確認結帳", description: "確認無誤後結帳。結帳後款項、成員與規則都會鎖定，無法再更改。" },
+];
 
 export default function SettlePage() {
   const router = useRouter();
@@ -41,6 +50,8 @@ export default function SettlePage() {
       router.replace(`/events/${eventId}/settle/done`);
     }
   }, [event, eventId, router]);
+
+  useTour("settle", SETTLE_TOUR, !loading && preview !== null && event?.my_role === "host" && !event.settled);
 
   const handleSettle = async () => {
     if (submitting) return;
@@ -84,7 +95,7 @@ export default function SettlePage() {
         </div>
       )}
 
-      <div className="section-title mt-20">全部款項</div>
+      <div data-tour="settle-items" className="section-title mt-20">全部款項</div>
       <div className="card mt-10" style={{ padding: 20 }}>
         <div className="section-title">款項現況</div>
         {preview.items.length === 0 ? (
@@ -111,7 +122,7 @@ export default function SettlePage() {
         </div>
       </div>
 
-      <div className="section-title mt-24">人員分攤結果</div>
+      <div data-tour="settle-splits" className="section-title mt-24">人員分攤結果</div>
       <div className="grid-cards grid-cards--sm mt-10">
         {preview.splits.map((m) => (
           <div key={m.memberId} className="card" style={{ padding: "16px 20px" }}>
@@ -142,7 +153,7 @@ export default function SettlePage() {
         ))}
       </div>
 
-      <div className="section-title mt-24">人員付款流向</div>
+      <div data-tour="settle-flows" className="section-title mt-24">人員付款流向</div>
       <div className="grid-cards grid-cards--sm mt-10">
         {preview.flows.map((row) => (
           <div key={row.memberId} className="card" style={{ padding: "16px 20px" }}>
@@ -182,7 +193,7 @@ export default function SettlePage() {
         ))}
       </div>
 
-      <div className="section-title mt-24">留言</div>
+      <div data-tour="settle-note" className="section-title mt-24">留言</div>
       <div className="mt-10">
         <textarea
           className="input"
@@ -219,6 +230,7 @@ export default function SettlePage() {
 
       <div className="bottom-cta">
         <button
+          data-tour="settle-confirm"
           className="btn btn-primary btn-cta-lg"
           onClick={() => setConfirming(true)}
           disabled={submitting}
