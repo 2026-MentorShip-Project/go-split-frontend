@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
@@ -9,6 +9,19 @@ import { useShallow } from "zustand/shallow";
 import { isEventDetailPage, ROUTES } from "@/lib/routes";
 import { getEvent } from "@/api/event";
 import type { RoleType } from "@/lib/types";
+
+function subscribeStorage(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function readGuestSession() {
+  try {
+    return Boolean(localStorage.getItem("guest_session"));
+  } catch {
+    return false;
+  }
+}
 
 function extractEventId(pathname: string | null): string | null {
   if (!pathname) return null;
@@ -35,7 +48,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
-  const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
+  // Read after hydration; the server has no localStorage, so reading it during
+  // render would make the sidebar differ between server and client HTML.
+  const hasGuestSession = useSyncExternalStore(subscribeStorage, readGuestSession, () => false);
   const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
   // Track which eventId archived/settled belong to, so we never reset state
