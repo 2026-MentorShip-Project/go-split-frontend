@@ -7,9 +7,10 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Dot from "@/components/ui/Dot";
+import Dialog from "@/components/ui/Dialog";
 import {
   BackIcon, CheckIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon,
-  LockIcon, UnlockIcon,
+  LockIcon, UnlockIcon, PlusIcon, XIcon,
 } from "@/components/icons";
 import { money, num } from "@/lib/formatters";
 import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from "@/api/event";
@@ -137,7 +138,6 @@ export default function ItemDetailPage() {
   const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
-  const setDelAsk = useStore((s) => s.setDelAsk);
 
   const [details, setDetails] = useState<LocalDetail[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -150,6 +150,8 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [payerId, setPayerId] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -184,6 +186,28 @@ export default function ItemDetailPage() {
   if (error) return <div className="page-shell">{error}</div>;
 
   const canEditItem = !settled && (myRole === "host" || myRole === "co");
+
+  const detailsTotal = details.reduce((a, d) => a + num(d.amount), 0);
+
+  const handleAddDetail = () => {
+    if (!canEditItem) return;
+    setDetails((prev) => [
+      ...prev,
+      {
+        name: "",
+        amount: "",
+        tags: [],
+        note: "",
+        shares: {},
+        invalid: null,
+        payerAbsorbs: false,
+        customAmounts: {},
+        manualMemberIds: null,
+      },
+    ]);
+    setEditDetail(details.length);
+    setDirty(true);
+  };
 
   const patchDetail = (detailIdx: number, patch: Partial<LocalDetail>, recalc = false) => {
     setDetails((prev) => prev.map((d, i) => {
@@ -277,6 +301,7 @@ export default function ItemDetailPage() {
       setDetails(res.details.map(apiDetailToLocal));
       setDirty(false);
       setEditDetail(null);
+      router.push(`/events/${eventId}`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "更新款項失敗");
     } finally {
@@ -285,11 +310,15 @@ export default function ItemDetailPage() {
   };
 
   const handleDeleteItem = async () => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await deleteItem(eventId, itemId);
+      setShowDeleteDialog(false);
       router.push(`/events/${eventId}`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "刪除款項失敗");
+      setDeleting(false);
     }
   };
 
@@ -310,10 +339,13 @@ export default function ItemDetailPage() {
             }}
             onClick={() => setShareOpen((prev) => ({ ...prev, [index]: !open }))}
           >
-            <span className="text3 fs12">{open ? "▼" : "▶"}</span>
+            <span className="text3 fs12">{open ? "▼" : "▲"}</span>
             共計 {rows === null ? "…" : count} 人分攤
           </button>
         </div>
+        {detail.payerAbsorbs && (
+          <div className="fs12 mt-10" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
+        )}
         {open && rows && (
           <div className="grid-cards mt-10">
             {rows.map((row) => (
@@ -475,7 +507,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty || details.some((d) => d.invalid)}
+                disabled={saving || !dirty || details.length === 0 || details.some((d) => d.invalid)}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
@@ -483,7 +515,7 @@ export default function ItemDetailPage() {
               <IconButton
                 variant="danger"
                 title="刪除這筆款項"
-                onClick={() => setDelAsk(handleDeleteItem)}
+                onClick={() => setShowDeleteDialog(true)}
               >
                 <TrashIcon size={18} />
               </IconButton>
@@ -492,54 +524,52 @@ export default function ItemDetailPage() {
         </div>
       </div>
 
-      <div
-        className="mt-20"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,300px),1fr))",
-          gap: 20, alignItems: "start",
-        }}
-      >
+      <div className="mt-20">
+        <div className="card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "14px 20px" }}>
+          <span className="fs18 fw500" style={{ flex: "none" }}>本筆款項合計</span>
+          <span className="grow fs18 fw700" style={{ textAlign: "right" }}>{money(detailsTotal)}</span>
+        </div>
 
-        <div>
-          <div className="flex-col gap-16 mt-10">
+        <div className="flex items-center between gap-10 mt-20">
+          <span className="section-title">明細</span>
+          {canEditItem && (
+            <IconButton variant="sm" title="新增明細" onClick={handleAddDetail}>
+              <PlusIcon size={16} />
+            </IconButton>
+          )}
+        </div>
+
+        <div className="flex-col gap-16 mt-10">
             {details.map((d, i) => {
               const isEditing = editDetail === i;
               return (
                 <div key={i} className="card card-pad">
                   {!isEditing ? (
                     <>
-                      <div className="flex between items-start gap-10">
-                        <span className="grow fs16 fw500" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {d.name}
+                      <div className="flex between items-center gap-10">
+                        <span className="grow fs16 fw700" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {d.name || "（未命名）"}
                         </span>
-                        <span className="fs16 fw500">
-                          {money(num(d.amount))}
-                        </span>
-                        {canEditItem && (
-                          <span className="flex items-center gap-10" style={{ flex: "none" }}>
-                            <IconButton variant="sm" title="刪除" onClick={() => handleRemoveDetail(i)}>
-                              <TrashIcon size={14} />
-                            </IconButton>
-                            <IconButton variant="sm-fill" title="編輯" onClick={() => setEditDetail(i)}>
-                              <EditIcon size={14} />
-                            </IconButton>
+                        <span className="flex items-center gap-10" style={{ flex: "1 1 auto", minWidth: 0, justifyContent: "flex-end" }}>
+                          <span className="fs16 fw700" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {money(num(d.amount))}
                           </span>
-                        )}
+                          {canEditItem && (
+                            <>
+                              <IconButton variant="sm" title="刪除" onClick={() => handleRemoveDetail(i)}>
+                                <TrashIcon size={14} />
+                              </IconButton>
+                              <IconButton variant="sm-fill" title="編輯" onClick={() => setEditDetail(i)}>
+                                <EditIcon size={14} />
+                              </IconButton>
+                            </>
+                          )}
+                        </span>
                       </div>
-                      <div className="mt-12 flex wrap gap-8">
-                        {d.tags.map((t) => (
-                          <Chip key={t} label={t} kind="item" />
-                        ))}
-                      </div>
-                      {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
                       {d.invalid && (
                         <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
                           {splitIssueText(d.invalid)}
                         </div>
-                      )}
-                      {d.payerAbsorbs && (
-                        <div className="fs12 mt-12" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
                       )}
                       {renderSharePreview(d, i)}
                     </>
@@ -553,11 +583,17 @@ export default function ItemDetailPage() {
                           style={{ flex: 1, minWidth: 0, padding: 12, fontSize: 14 }}
                         />
                         <span className="flex items-center gap-8" style={{ flex: "none" }}>
-                          <IconButton variant="sm" title="刪除項目" onClick={() => handleRemoveDetail(i)}>
-                            <TrashIcon size={14} />
-                          </IconButton>
                           <IconButton variant="sm-fill" title="完成" onClick={() => setEditDetail(null)}>
                             <CheckIcon size={16} />
+                          </IconButton>
+                          <IconButton variant="sm" title="取消" onClick={() => {
+                            if (!d.id && !d.name && !d.amount) {
+                              handleRemoveDetail(i);
+                            } else {
+                              setEditDetail(null);
+                            }
+                          }}>
+                            <XIcon size={16} />
                           </IconButton>
                         </span>
                       </div>
@@ -653,9 +689,41 @@ export default function ItemDetailPage() {
                 </div>
               );
             })}
-          </div>
+            {details.length === 0 && (
+              <div className="empty-box" style={{ borderStyle: "dashed" }}>
+                尚無明細<br />按右上 ＋ 新增明細
+              </div>
+            )}
         </div>
       </div>
+
+      {showDeleteDialog && (
+        <Dialog
+          title="刪除這筆款項"
+          body="刪除後無法復原，確定要刪除嗎？"
+          danger
+          onClose={() => setShowDeleteDialog(false)}
+          actions={
+            <>
+              <button
+                className="btn-pill"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deleting}
+              >
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => void handleDeleteItem()}
+                disabled={deleting}
+              >
+                {deleting ? "刪除中…" : "確認刪除"}
+              </button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }

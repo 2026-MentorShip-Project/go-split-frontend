@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
@@ -22,6 +22,19 @@ const TOUR_PAGES: [RegExp, string][] = [
 function tourKeyFor(pathname: string | null): string | null {
   if (!pathname) return null;
   return TOUR_PAGES.find(([re]) => re.test(pathname))?.[1] ?? null;
+}
+
+function subscribeStorage(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function readGuestSession() {
+  try {
+    return Boolean(localStorage.getItem("guest_session"));
+  } catch {
+    return false;
+  }
 }
 
 function extractEventId(pathname: string | null): string | null {
@@ -49,7 +62,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const showNav = isEventDetailPage(pathname);
   const isHost = role === "host";
-  const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
+  // Read after hydration; the server has no localStorage, so reading it during
+  // render would make the sidebar differ between server and client HTML.
+  const hasGuestSession = useSyncExternalStore(subscribeStorage, readGuestSession, () => false);
   const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
   // Track which eventId archived/settled belong to, so we never reset state
@@ -59,6 +74,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     archived: boolean;
     settled: boolean;
   } | null>(null);
+  const fetchedEventIdRef = useRef<string | null>(null);
   const isArchived = eventMeta?.eventId === eventId && eventMeta.archived;
   const isSettled = eventMeta?.eventId === eventId && eventMeta.settled;
 
@@ -87,12 +103,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [cur, isGuest, pathname, router]);
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId) {
+      fetchedEventIdRef.current = null;
+      return;
+    }
+    // Only skip after a successful fetch for this event. Marking the ref before
+    // the request resolves caused cancelled fetches (Strict Mode / sub-route
+    // navigations) to permanently leave role stuck at the default "member".
+    if (fetchedEventIdRef.current === eventId) return;
 
     let cancelled = false;
     getEvent(Number(eventId))
       .then((ev) => {
         if (cancelled) return;
+        fetchedEventIdRef.current = eventId;
         setRole(ev.my_role as RoleType);
         setEventMeta({ eventId, archived: ev.archived, settled: ev.settled });
       })
@@ -101,7 +125,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [eventId, pathname, setRole]);
+  }, [eventId, setRole]);
 
   const tourKey = tourKeyFor(pathname);
 
@@ -157,7 +181,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, tourKey]);
 
   return (
-    <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div
+      id="app-root"
+      className={showNav ? undefined : "no-rail"}
+      style={{ height: "100dvh", display: "flex", flexDirection: "column" }}
+    >
       <div className="app-body">
         <div className="app-row">
           {showNav && (

@@ -45,6 +45,8 @@ img{ max-width:100%; }
 
 /* ---------- layout shell ---------- */
 #app-root{ height:100dvh; display:flex; flex-direction:column; box-sizing:border-box; background:var(--bg-screen); overflow:hidden; }
+/* Dashboard / pages without the event sidebar — topbar bleed must use full viewport. */
+#app-root.no-rail{ --railw-lg:0px; --rail:none; }
 .app-body{ width:100%; flex:1 1 auto; min-height:0; background:var(--bg-screen); overflow:hidden; position:relative; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom,0px); }
 .app-row{ flex:1 1 auto; min-height:0; display:flex; flex-direction:row; width:100%; min-width:0; }
 .app-scroll{ flex:1 1 auto; min-height:0; min-width:0; overflow-y:auto; overflow-x:hidden; width:100%; background:var(--bg-screen); }
@@ -67,9 +69,18 @@ img{ max-width:100%; }
 .sidebar-section{ margin-top:8px; border-top:1px solid var(--ln-control); padding-top:10px; }
 
 /* ---------- topbar ---------- */
-.topbar{ position:sticky; top:0; z-index:6; background:rgba(255,255,255,.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--ln-control);
-  margin-left:calc(50% - (100vw - var(--railw-lg) - var(--sbw))/2); margin-right:calc(50% - (100vw - var(--railw-lg) - var(--sbw))/2); margin-top:-8px; box-sizing:border-box;
-  padding:0 calc(max(0px, (100vw - var(--railw-lg) - var(--sbw))/2 - 600px) + var(--gut)); }
+/* Breaks out of .page-shell so the sticky bar background spans the scroll area. */
+.topbar{
+  --topbar-span:calc(100vw - var(--railw-lg) - var(--sbw));
+  position:sticky; top:0; z-index:6;
+  width:var(--topbar-span); max-width:none; box-sizing:border-box;
+  margin-left:calc(50% - var(--topbar-span) / 2);
+  margin-right:calc(50% - var(--topbar-span) / 2);
+  margin-top:-8px;
+  padding:0 calc(max(0px, (var(--topbar-span) - var(--page-max)) / 2) + var(--gut));
+  background:rgba(255,255,255,.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--ln-control);
+}
 .topbar-row{ position:relative; min-height:var(--tb); display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .topbar-row--start{ justify-content:flex-start; }
 .topbar-title{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:calc(100% - 150px); font-size:24px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
@@ -82,11 +93,19 @@ img{ max-width:100%; }
 .icon-btn--soft:hover{ background:#D9ECEA; }
 .icon-btn--danger{ background:var(--err-bg); color:var(--danger); }
 .icon-btn--danger:hover{ background:#FFD9D9; }
+.icon-btn:disabled,
+.icon-btn:disabled:hover{
+  background:var(--bg-neutral);
+  color:#C4CCCB;
+  cursor:not-allowed;
+}
 .icon-btn-sm{ flex:none; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border:1px solid var(--ln-control); border-radius:99px; background:#FFFFFF; color:var(--text2); cursor:pointer; }
 .icon-btn-sm:hover{ background:var(--bg-neutral); border-color:#B9C6C3; border-width:2px; }
 .icon-btn-sm--fill{ border:none; color:#fff; background:var(--teal); }
 .icon-btn-sm--fill:hover{ background:var(--teal-hover); }
-.icon-btn-sm--disabled{ border:1px solid #EDF1F0; background:var(--bg-neutral); color:#C4CCCB; cursor:not-allowed; }
+.icon-btn-sm--disabled,
+.icon-btn-sm:disabled,
+.icon-btn-sm:disabled:hover{ border:1px solid #EDF1F0; background:var(--bg-neutral); color:#C4CCCB; cursor:not-allowed; }
 .hamburger{ display:var(--burger); flex-direction:column; align-items:center; justify-content:center; gap:4px; }
 .hamburger span{ width:16px; height:2px; border-radius:2px; background:var(--text); display:block; }
 
@@ -157,7 +176,7 @@ textarea.input{ resize:none; line-height:1.6; }
 .dialog-title{ font-size:20px; font-weight:700; color:var(--text); text-align:center; }
 .dialog-title--danger{ color:var(--danger); }
 .dialog-body{ margin-top:10px; font-size:14px; color:var(--text2); line-height:1.75; text-align:center; }
-.dialog-actions{ margin-top:20px; display:flex; gap:10px; }
+.dialog-actions{ margin-top:20px; display:flex; gap:10px;justify-content: center; }
 .dialog-actions .btn{ flex:1; padding:14px; border-radius:99px; font-size:16px; width:auto; }
 .dialog-btn-cancel{ background:#fff; color:var(--text2); border:1px solid var(--ln-control); }
 .dialog-btn-cancel:hover{ background:var(--bg-neutral); border-color:#B9C6C3; border-width:2px; color:var(--text); }
