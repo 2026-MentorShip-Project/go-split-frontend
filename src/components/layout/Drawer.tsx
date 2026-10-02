@@ -9,6 +9,7 @@ interface DrawerProps {
   isHost: boolean;
   isGuest: boolean;
   isArchived?: boolean;
+  hasTour?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -31,6 +32,7 @@ export default function Drawer({
   isHost,
   isGuest,
   isArchived = false,
+  hasTour = false,
 }: DrawerProps) {
   if (!open) return null;
 
@@ -88,7 +90,7 @@ export default function Drawer({
               </>
             )}
 
-            {!isArchived && (
+            {hasTour && (
               <li>
                 <button className="drawer-item" onClick={() => handleNav("tour")}>
                   <span className="drawer-item-label">使用導覽</span>

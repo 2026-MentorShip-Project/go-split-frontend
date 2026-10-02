@@ -7,6 +7,7 @@ interface SidebarProps {
   isGuest: boolean;
   isArchived?: boolean;
   showNav: boolean;
+  hasTour?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -26,6 +27,7 @@ export default function Sidebar({
   isGuest,
   isArchived = false,
   showNav,
+  hasTour = false,
 }: SidebarProps) {
   const showHostItems = isHost && !isArchived;
 
@@ -78,7 +80,7 @@ export default function Sidebar({
             </>
           )}
 
-          {!isArchived && (
+          {hasTour && (
             <>
               <div className="sidebar-divider" />
               <button className="sidebar-item" onClick={() => onNavigate("tour")}>
