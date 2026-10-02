@@ -82,11 +82,19 @@ img{ max-width:100%; }
 .icon-btn--soft:hover{ background:#D9ECEA; }
 .icon-btn--danger{ background:var(--err-bg); color:var(--danger); }
 .icon-btn--danger:hover{ background:#FFD9D9; }
+.icon-btn:disabled,
+.icon-btn:disabled:hover{
+  background:var(--bg-neutral);
+  color:#C4CCCB;
+  cursor:not-allowed;
+}
 .icon-btn-sm{ flex:none; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border:1px solid var(--ln-control); border-radius:99px; background:#FFFFFF; color:var(--text2); cursor:pointer; }
 .icon-btn-sm:hover{ background:var(--bg-neutral); border-color:#B9C6C3; border-width:2px; }
 .icon-btn-sm--fill{ border:none; color:#fff; background:var(--teal); }
 .icon-btn-sm--fill:hover{ background:var(--teal-hover); }
-.icon-btn-sm--disabled{ border:1px solid #EDF1F0; background:var(--bg-neutral); color:#C4CCCB; cursor:not-allowed; }
+.icon-btn-sm--disabled,
+.icon-btn-sm:disabled,
+.icon-btn-sm:disabled:hover{ border:1px solid #EDF1F0; background:var(--bg-neutral); color:#C4CCCB; cursor:not-allowed; }
 .hamburger{ display:var(--burger); flex-direction:column; align-items:center; justify-content:center; gap:4px; }
 .hamburger span{ width:16px; height:2px; border-radius:2px; background:var(--text); display:block; }
 
