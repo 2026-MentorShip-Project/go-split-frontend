@@ -423,6 +423,8 @@ export interface RuleDraft {
   rules: { op: "create" | "replace"; rule: Rule; note?: string }[];
   memberConds: { memberId: number; add: string[] }[];
   issues: RuleDraftIssue[];
+  /** The plan as the server sent it; apply must send it back unchanged. */
+  plan: unknown;
 }
 
 /** Resolves to null when the server has rule drafting turned off (503). */
@@ -448,7 +450,21 @@ export async function draftRules(eventId: number, text: string): Promise<RuleDra
       add: m.add,
     })),
     issues: issues ?? [],
+    plan,
   };
+}
+
+/** Resolves to the issues when the plan no longer applies (422); nothing was saved then. */
+export async function applyRulePlan(eventId: number, plan: unknown): Promise<RuleDraftIssue[] | null> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/rules/apply`, plan);
+  if (res.status === 422) {
+    const data = await res.json().catch(() => ({}));
+    return data.issues ?? [];
+  }
+  if (!res.ok) {
+    throw new Error(await readApiError(res, "套用分攤規則失敗"));
+  }
+  return null;
 }
 
 export async function deleteRuleApi(eventId: number, ruleId: number): Promise<void> {
