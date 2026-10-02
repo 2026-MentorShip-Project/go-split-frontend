@@ -78,6 +78,7 @@ function toEngineDetail(
   detail: ItemDetail,
   rules: Rule[],
   engineIds: Map<string, number>,
+  payerId?: string,
 ): EngineDetail {
   const custom: Record<string, number> = {};
   for (const [memberId, value] of Object.entries(detail.custom ?? {})) {
@@ -98,18 +99,23 @@ function toEngineDetail(
     item_tag: engineItemTag(detail.tags, rules),
     manual_member_ids: manual,
     custom_amounts: custom,
+    payer_id: payerId === undefined ? undefined : engineIds.get(payerId),
   };
 }
 
-/** Throws until initSplitEngine() resolves; gate callers on useSplitEngine(). */
+/**
+ * Throws until initSplitEngine() resolves; gate callers on useSplitEngine().
+ * The payer absorbs a detail nobody shares; without one that is no-participant.
+ */
 export function splitOneDetail(
   detail: ItemDetail,
   members: Member[],
   rules: Rule[],
+  payerId?: string,
 ): SplitResult {
   const engineIds = engineIdsByMember(members);
   return splitDetail({
-    detail: toEngineDetail(detail, rules, engineIds),
+    detail: toEngineDetail(detail, rules, engineIds, payerId),
     members: toEngineMembers(members),
     rules: toEngineRules(rules),
     split_order: members.map((_, i) => i + 1),

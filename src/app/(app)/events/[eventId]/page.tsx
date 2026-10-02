@@ -10,7 +10,7 @@ import { PlusIcon } from "@/components/icons";
 import { money } from "@/lib/formatters";
 import { getEvent, type EventDetail } from "@/api/event";
 import { getMyDetails, getShares, type MyDetails } from "@/api/settlement";
-import { splitIssueText } from "@/lib/split-validity";
+import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
 
 export default function EventPage() {
   const router = useRouter();
@@ -29,7 +29,7 @@ export default function EventPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myDetails, setMyDetails] = useState<MyDetails | null>(null);
-  const [unshared, setUnshared] = useState<Set<number>>(new Set());
+  const [absorbed, setAbsorbed] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +37,7 @@ export default function EventPage() {
     async function load() {
       setLoading(true);
       setMyDetails(null);
-      setUnshared(new Set());
+      setAbsorbed(new Set());
       try {
         const event = await getEvent(eventId);
         if (cancelled) return;
@@ -54,8 +54,10 @@ export default function EventPage() {
           getShares(eventId)
             .then((shares) => {
               if (cancelled) return;
-              setUnshared(new Set(
-                shares.per_detail.filter((d) => d.validity === "no-participant").map((d) => d.item_id),
+              setAbsorbed(new Set(
+                shares.per_detail
+                  .filter((d) => d.shares.some((s) => s.trace?.kind === "payer-absorbs"))
+                  .map((d) => d.item_id),
               ));
             })
             .catch(() => {});
@@ -318,9 +320,9 @@ export default function EventPage() {
                       <Chip key={t} label={t} kind="item" />
                     ))}
                   </div>
-                  {unshared.has(it.id) && (
+                  {absorbed.has(it.id) && (
                     <div className="mt-10 fs12" style={{ color: "var(--tag-item-fg)" }}>
-                      {splitIssueText("no-participant")}
+                      {PAYER_ABSORBS_NOTE}
                     </div>
                   )}
                 </button>

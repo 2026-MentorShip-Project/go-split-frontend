@@ -16,7 +16,7 @@ import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from
 import type { EventDetailDetail } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
-import { blocksSave, splitIssueColor, splitIssueText } from "@/lib/split-validity";
+import { blocksSave, PAYER_ABSORBS_NOTE, splitIssueColor, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -30,6 +30,7 @@ interface LocalDetail {
   // custom amounts as fixed overrides, so posting these would pin the split.
   shares: Record<string, number>;
   invalid: string | null;
+  payerAbsorbs: boolean;
   customAmounts: Record<string, number>;
   manualMemberIds: number[] | null;
 }
@@ -55,6 +56,7 @@ function apiDetailToLocal(d: EventDetailDetail): LocalDetail {
     note: d.note || "",
     shares,
     invalid: d.allocation && d.allocation.validity !== "ok" ? d.allocation.validity : null,
+    payerAbsorbs: d.allocation?.shares.some((s) => s.trace?.kind === "payer-absorbs") ?? false,
     customAmounts: d.custom_amounts ?? {},
     manualMemberIds: d.manual_member_ids ?? null,
   };
@@ -75,15 +77,16 @@ function tagHasRule(tags: string[], rules: Rule[]): boolean {
   return tags.some((t) => rules.some((r) => r.tag === t));
 }
 
-function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[]): LocalDetail {
+function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[], payerId: string): LocalDetail {
   try {
-    const result = detailShares(toItemDetail(detail), members, rules);
+    const result = detailShares(toItemDetail(detail), members, rules, payerId);
     const shares: Record<string, number> = {};
     for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
     return {
       ...detail,
       shares,
       invalid: result.validity !== "ok" ? result.validity : null,
+      payerAbsorbs: result.payerAbsorbs,
     };
   } catch {
     return detail;
@@ -95,10 +98,11 @@ function buildShareRows(
   members: Member[],
   rules: Rule[],
   engineReady: boolean,
+  payerId: string,
 ): ShareRow[] | null {
   if (!engineReady || members.length === 0) return null;
   try {
-    const result = detailShares(toItemDetail(detail), members, rules);
+    const result = detailShares(toItemDetail(detail), members, rules, payerId);
     return result.inc.map((m) => ({
       id: m.id,
       name: m.name,
@@ -145,6 +149,7 @@ export default function ItemDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [payerId, setPayerId] = useState("");
 
   useEffect(() => {
     Promise.all([
@@ -155,6 +160,7 @@ export default function ItemDetailPage() {
     ])
       .then(([item, ev, tags, rl]) => {
         setDetails(item.details.map(apiDetailToLocal));
+        setPayerId(String(item.payer_member_id));
         setMembers((ev.members ?? []).map((m) => ({
           id: String(m.id),
           name: m.display,
@@ -184,7 +190,7 @@ export default function ItemDetailPage() {
       if (i !== detailIdx) return d;
       let next: LocalDetail = { ...d, ...patch };
       if (recalc && engineReady && members.length > 0) {
-        next = applyShareResult(next, members, rules);
+        next = applyShareResult(next, members, rules, payerId);
       }
       return next;
     }));
@@ -288,7 +294,7 @@ export default function ItemDetailPage() {
   };
 
   const renderSharePreview = (detail: LocalDetail, index: number) => {
-    const rows = buildShareRows(detail, members, rules, engineReady);
+    const rows = buildShareRows(detail, members, rules, engineReady, payerId);
     const open = shareOpen[index] !== false;
     const count = rows?.length ?? 0;
 
@@ -532,6 +538,9 @@ export default function ItemDetailPage() {
                           {splitIssueText(d.invalid)}
                         </div>
                       )}
+                      {d.payerAbsorbs && (
+                        <div className="fs12 mt-12" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
+                      )}
                       {renderSharePreview(d, i)}
                     </>
                   ) : (
@@ -634,6 +643,9 @@ export default function ItemDetailPage() {
                         <div className="fs12 mt-12" style={{ color: splitIssueColor(d.invalid) }}>
                           {splitIssueText(d.invalid)}
                         </div>
+                      )}
+                      {d.payerAbsorbs && (
+                        <div className="fs12 mt-12" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
                       )}
                       {renderShareEditor(d, i)}
                     </>

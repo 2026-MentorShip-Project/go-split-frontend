@@ -54,7 +54,7 @@ export interface EventDetailDetail {
   custom_amounts?: Record<string, number>;
   manual_member_ids?: number[] | null;
   allocation?: {
-    shares: { member_id: number; amount: number }[];
+    shares: { member_id: number; amount: number; trace?: { kind: string } }[];
     excluded: { member_id: number; amount: number }[];
     validity: "ok" | "no-participant" | "custom-mismatch" | "custom-overflow";
   };

@@ -6,7 +6,7 @@ import type { ItemDetail, Member, Rule } from "@/lib/types";
 import type { Trace } from "@go-split/engine";
 
 const INVALID_TEXT: Record<string, string> = {
-  "no-participant": "沒有人分攤這筆，請調整標籤或人員條件",
+  "no-participant": "沒有人符合，這筆將由付款人全額負擔",
   "custom-mismatch": "指定金額加總與品項金額不符",
   "custom-overflow": "指定金額超過品項金額",
 };
@@ -24,6 +24,8 @@ function reason(trace: Trace): string {
       return trace.weight === 1 ? "其他人員" : `其他人員，權重 ×${trace.weight}`;
     case "custom":
       return "指定金額";
+    case "payer-absorbs":
+      return "無人符合，由付款人負擔";
     default:
       return "均分";
   }

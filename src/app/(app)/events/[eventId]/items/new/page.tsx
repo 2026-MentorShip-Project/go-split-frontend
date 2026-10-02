@@ -11,7 +11,7 @@ import { money, num } from "@/lib/formatters";
 import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
-import { blocksSave, splitIssueColor, splitIssueText } from "@/lib/split-validity";
+import { blocksSave, PAYER_ABSORBS_NOTE, splitIssueColor, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -26,6 +26,7 @@ interface ShareRow {
 interface SharePreview {
   rows: ShareRow[];
   invalid: string | null;
+  payerAbsorbs: boolean;
 }
 
 function buildSharePreview(
@@ -33,10 +34,11 @@ function buildSharePreview(
   members: Member[],
   rules: Rule[],
   engineReady: boolean,
+  payerId: string | undefined,
 ): SharePreview | null {
   if (!engineReady || members.length === 0) return null;
   try {
-    const result = detailShares(detail, members, rules);
+    const result = detailShares(detail, members, rules, payerId);
     return {
       rows: result.inc.map((m) => ({
         id: m.id,
@@ -46,6 +48,7 @@ function buildSharePreview(
         amount: result.map[m.id] ?? 0,
       })),
       invalid: result.validity !== "ok" ? result.validity : null,
+      payerAbsorbs: result.payerAbsorbs,
     };
   } catch {
     return null;
@@ -94,6 +97,9 @@ export default function AddItemPage() {
       .catch(console.error);
   }, [eventId, setItemTags]);
 
+  // The person adding the card pays it, so they absorb lines nobody shares.
+  const payerId = myMemberId === null ? undefined : String(myMemberId);
+
   const draftTotal = draft.details.reduce(
     (a, d) => a + (typeof d.amount === "number" ? d.amount : num(String(d.amount))),
     0,
@@ -106,7 +112,7 @@ export default function AddItemPage() {
   };
 
   const hasInvalid = draft.details.some(
-    (d) => blocksSave(buildSharePreview(d, members, rules, engineReady)?.invalid),
+    (d) => blocksSave(buildSharePreview(d, members, rules, engineReady, payerId)?.invalid),
   );
 
   const handleSubmit = async () => {
@@ -135,7 +141,7 @@ export default function AddItemPage() {
   };
 
   const renderSharePreview = (detail: ItemDetail, index: number) => {
-    const preview = buildSharePreview(detail, members, rules, engineReady);
+    const preview = buildSharePreview(detail, members, rules, engineReady, payerId);
     const rows = preview?.rows ?? null;
     const open = shareOpen[index] !== false;
     const count = rows?.length ?? 0;
@@ -160,6 +166,9 @@ export default function AddItemPage() {
           <div className="fs12 mt-10" style={{ color: splitIssueColor(preview.invalid) }}>
             {splitIssueText(preview.invalid)}
           </div>
+        )}
+        {preview?.payerAbsorbs && (
+          <div className="fs12 mt-10" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
         )}
         {open && rows && (
           <div className="grid-cards mt-10">
