@@ -219,7 +219,7 @@ export default function EventPage() {
                 width: "100%", padding: "12px 16px", fontSize: 14,
                 border: "1px solid var(--ln-control)", cursor: "pointer",
               }}
-              onClick={() => router.push(`/events/${eventId}/payments`)}
+              onClick={() => router.push(`/events/${eventId}/settle/done`)}
             >
               查看全部付款流向
             </button>

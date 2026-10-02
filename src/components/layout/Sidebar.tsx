@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 
 const HOST_ITEMS = [
   { key: "group", label: "群組設定" },
-  { key: "settle", label: "分帳產出/繳款狀況" },
+  { key: "payment", label: "分帳作業" },
 ];
 
 export default function Sidebar({

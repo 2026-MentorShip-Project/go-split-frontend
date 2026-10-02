@@ -88,7 +88,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (pathname === "/dashboard") return "home";
     if (pathname.includes("/group")) return "group";
     if (pathname.includes("/rules")) return "rules";
-    if (pathname.includes("/settle")) return "settle";
+    if (pathname.includes("/payments")) return "payment";
     if (pathname.match(/^\/events\/\d+$/)) return "event";
     return "";
   }, [pathname]);
@@ -108,8 +108,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       case "rules":
         if (eventId) router.push(ROUTES.EVENTS.RULES(eventId));
         break;
-      case "settle":
-        if (eventId) router.push(ROUTES.EVENTS.SETTLE(eventId));
+      case "payment":
+        if (eventId) router.push(ROUTES.EVENTS.PAYMENTS(eventId));
         break;
     }
   }, [closeMenu, router, eventId]);
