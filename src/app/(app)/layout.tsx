@@ -78,14 +78,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       fetchedEventIdRef.current = null;
       return;
     }
-    // Same event, different sub-route (e.g. item → event detail): skip refetch.
+    // Only skip after a successful fetch for this event. Marking the ref before
+    // the request resolves caused cancelled fetches (Strict Mode / sub-route
+    // navigations) to permanently leave role stuck at the default "member".
     if (fetchedEventIdRef.current === eventId) return;
-    fetchedEventIdRef.current = eventId;
 
     let cancelled = false;
     getEvent(Number(eventId))
       .then((ev) => {
         if (cancelled) return;
+        fetchedEventIdRef.current = eventId;
         setRole(ev.my_role as RoleType);
         setEventMeta({ eventId, archived: ev.archived, settled: ev.settled });
       })
@@ -94,7 +96,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [eventId, pathname, setRole]);
+  }, [eventId, setRole]);
 
   const activeScreen = useMemo(() => {
     if (!pathname) return "";
