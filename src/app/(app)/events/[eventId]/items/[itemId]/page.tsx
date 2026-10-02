@@ -7,6 +7,7 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Dot from "@/components/ui/Dot";
+import Dialog from "@/components/ui/Dialog";
 import {
   BackIcon, CheckIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon,
   LockIcon, UnlockIcon,
@@ -137,12 +138,12 @@ export default function ItemDetailPage() {
   const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
-  const setDelAsk = useStore((s) => s.setDelAsk);
 
   const [details, setDetails] = useState<LocalDetail[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [shareOpen, setShareOpen] = useState<Record<number, boolean>>({});
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [myRole, setMyRole] = useState("");
   const [settled, setSettled] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -463,6 +464,28 @@ export default function ItemDetailPage() {
 
   return (
     <div className="page-shell">
+      {confirmingDelete && (
+        <Dialog
+          title="確定要刪除這筆款項嗎？"
+          body="刪除後無法復原，這筆款項的所有項目和分攤都會一併移除。"
+          danger
+          onClose={() => setConfirmingDelete(false)}
+          actions={
+            <>
+              <button className="btn-pill" onClick={() => setConfirmingDelete(false)}>
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => void handleDeleteItem()}
+              >
+                確認刪除
+              </button>
+            </>
+          }
+        />
+      )}
       <div className="topbar">
         <div className="topbar-row">
           <IconButton onClick={() => router.push(`/events/${eventId}`)}>
@@ -483,7 +506,7 @@ export default function ItemDetailPage() {
               <IconButton
                 variant="danger"
                 title="刪除這筆款項"
-                onClick={() => setDelAsk(handleDeleteItem)}
+                onClick={() => setConfirmingDelete(true)}
               >
                 <TrashIcon size={18} />
               </IconButton>
