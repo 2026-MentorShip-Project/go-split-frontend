@@ -11,7 +11,7 @@ import { money, num } from "@/lib/formatters";
 import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
-import { blocksSave, PAYER_ABSORBS_NOTE, splitIssueColor, splitIssueText } from "@/lib/split-validity";
+import { PAYER_ABSORBS_NOTE, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -112,7 +112,7 @@ export default function AddItemPage() {
   };
 
   const hasInvalid = draft.details.some(
-    (d) => blocksSave(buildSharePreview(d, members, rules, engineReady, payerId)?.invalid),
+    (d) => buildSharePreview(d, members, rules, engineReady, payerId)?.invalid,
   );
 
   const handleSubmit = async () => {
@@ -163,7 +163,7 @@ export default function AddItemPage() {
           </button>
         </div>
         {preview?.invalid && (
-          <div className="fs12 mt-10" style={{ color: splitIssueColor(preview.invalid) }}>
+          <div className="fs12 mt-10" style={{ color: "var(--danger)" }}>
             {splitIssueText(preview.invalid)}
           </div>
         )}

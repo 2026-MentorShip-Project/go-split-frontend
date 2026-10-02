@@ -16,7 +16,7 @@ import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from
 import type { EventDetailDetail } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
-import { blocksSave, PAYER_ABSORBS_NOTE, splitIssueColor, splitIssueText } from "@/lib/split-validity";
+import { PAYER_ABSORBS_NOTE, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -475,7 +475,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty || details.some((d) => blocksSave(d.invalid))}
+                disabled={saving || !dirty || details.some((d) => d.invalid)}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
@@ -534,7 +534,7 @@ export default function ItemDetailPage() {
                       </div>
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
                       {d.invalid && (
-                        <div className="fs12 mt-12" style={{ color: splitIssueColor(d.invalid) }}>
+                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
                           {splitIssueText(d.invalid)}
                         </div>
                       )}
@@ -640,7 +640,7 @@ export default function ItemDetailPage() {
                         />
                       </div>
                       {d.invalid && (
-                        <div className="fs12 mt-12" style={{ color: splitIssueColor(d.invalid) }}>
+                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
                           {splitIssueText(d.invalid)}
                         </div>
                       )}
