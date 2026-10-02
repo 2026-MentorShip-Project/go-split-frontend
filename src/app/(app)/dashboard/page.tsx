@@ -187,7 +187,7 @@ export default function HomePage() {
               <span className="pill-neutral">{roleName(ev.role as import("@/lib/types").RoleType)}</span>
             </div>
             <div className="mt-6 fs12 text3">
-              {fmtIsoDatetime(ev.starts_at)} · {ev.place} · {ev.member_count} 人參與 · {ev.settled ? '' : '已結帳，待繳款'}
+              {fmtIsoDatetime(ev.starts_at)} · {ev.place} · {ev.member_count} 人參與 {ev.settled ? '· 已結帳，待繳款' : null}
             </div>
           </button>
         ))}
