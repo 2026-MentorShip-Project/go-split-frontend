@@ -60,6 +60,8 @@ export default function RulesPage() {
 
   const [usage, setUsage] = useState<Record<string, number>>({});
   const [archived, setArchived] = useState(false);
+  const [settled, setSettled] = useState(false);
+
   const tagEdit = useStore((s) => s.tagEdit);
   const setTagEdit = useStore((s) => s.setTagEdit);
   const tagMenu = useStore((s) => s.tagMenu);
@@ -71,7 +73,7 @@ export default function RulesPage() {
   const secEdit = useStore((s) => s.secEdit);
   const setSecEdit = useStore((s) => s.setSecEdit);
 
-  const canEditRules = role === "host" && !archived;
+  const canEditRules = (role === "host" || role === "co") && !archived && !settled;
 
   useEffect(() => {
     if (!eventId) return;
@@ -80,6 +82,7 @@ export default function RulesPage() {
       .catch(() => {});
     void getEvent(eventId)
       .then((ev) => {
+        setSettled(ev.settled);
         setArchived(ev.archived);
         setMembers((ev.members ?? []).map((m) => ({
           id: String(m.id),
@@ -291,7 +294,11 @@ export default function RulesPage() {
           padding: "12px 14px", borderRadius: 8, background: "var(--bg-neutral)",
           fontSize: 14, color: "var(--text2)", lineHeight: 1.7,
         }}>
-          {archived ? "活動已封存，無法編輯分攤規則" : "非主辦者／協辦者不可編輯分攤規則"}
+          {role !== "host" && role !== "co"
+            ? "非主辦者／協辦者不可編輯分攤規則"
+            : archived
+              ? "活動已封存，無法編輯分攤規則"
+              : "活動已分攤無法編輯"}
         </div>
       )}
 
