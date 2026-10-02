@@ -9,7 +9,8 @@ import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
 import { money } from "@/lib/formatters";
 import { getEvent, type EventDetail } from "@/api/event";
-import { getMyDetails, type MyDetails } from "@/api/settlement";
+import { getMyDetails, getShares, type MyDetails } from "@/api/settlement";
+import { splitIssueText } from "@/lib/split-validity";
 
 export default function EventPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function EventPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [myDetails, setMyDetails] = useState<MyDetails | null>(null);
+  const [unshared, setUnshared] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +37,7 @@ export default function EventPage() {
     async function load() {
       setLoading(true);
       setMyDetails(null);
+      setUnshared(new Set());
       try {
         const event = await getEvent(eventId);
         if (cancelled) return;
@@ -47,6 +50,15 @@ export default function EventPage() {
           } catch {
             // Settlement data is supplementary; flow section won't show
           }
+        } else {
+          getShares(eventId)
+            .then((shares) => {
+              if (cancelled) return;
+              setUnshared(new Set(
+                shares.per_detail.filter((d) => d.validity === "no-participant").map((d) => d.item_id),
+              ));
+            })
+            .catch(() => {});
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "取得活動失敗");
@@ -306,6 +318,11 @@ export default function EventPage() {
                       <Chip key={t} label={t} kind="item" />
                     ))}
                   </div>
+                  {unshared.has(it.id) && (
+                    <div className="mt-10 fs12" style={{ color: "var(--tag-item-fg)" }}>
+                      {splitIssueText("no-participant")}
+                    </div>
+                  )}
                 </button>
               );
             })}

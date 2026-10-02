@@ -7,7 +7,8 @@ import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
 import { money } from "@/lib/formatters";
 import { getEvent, archiveEvent, type EventDetail } from "@/api/event";
-import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
+import { getShares, getTransfers, InvalidSplitsError, type InvalidSplitLine, type SharesResponse, type TransfersResponse } from "@/api/settlement";
+import InvalidSplitsNotice from "@/components/features/InvalidSplitsNotice";
 
 export default function PaymentsPage() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function PaymentsPage() {
   const [transfers, setTransfers] = useState<TransfersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<InvalidSplitLine[] | null>(null);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
@@ -29,17 +31,20 @@ export default function PaymentsPage() {
     async function load() {
       setLoading(true);
       try {
-        const [event, sharesData, transfersData] = await Promise.all([
-          getEvent(eventId),
+        const event = await getEvent(eventId);
+        if (cancelled) return;
+        setEv(event);
+        const [sharesData, transfersData] = await Promise.all([
           getShares(eventId),
           getTransfers(eventId),
         ]);
         if (cancelled) return;
-        setEv(event);
         setShares(sharesData);
         setTransfers(transfersData);
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "載入失敗");
+        if (cancelled) return;
+        if (e instanceof InvalidSplitsError) setInvalid(e.lines);
+        else setError(e instanceof Error ? e.message : "載入失敗");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -68,6 +73,7 @@ export default function PaymentsPage() {
   };
 
   if (loading) return <div className="page-shell">載入中…</div>;
+  if (ev && invalid) return <div className="page-shell"><InvalidSplitsNotice event={ev} lines={invalid} /></div>;
   if (error || !ev || !shares || !transfers) return <div className="page-shell">{error ?? "載入失敗"}</div>;
 
   const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));

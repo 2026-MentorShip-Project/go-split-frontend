@@ -16,14 +16,9 @@ import { getEvent, getItem, updateItem, deleteItem, getItemTags, getRules } from
 import type { EventDetailDetail } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
+import { blocksSave, splitIssueColor, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
-
-const INVALID_SPLIT: Record<string, string> = {
-  "no-participant": "沒有人分攤這筆，請調整標籤或人員條件",
-  "custom-mismatch": "指定金額加總與品項金額不符",
-  "custom-overflow": "指定金額超過品項金額",
-};
 
 interface LocalDetail {
   id?: number;
@@ -474,7 +469,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty || details.some((d) => d.invalid)}
+                disabled={saving || !dirty || details.some((d) => blocksSave(d.invalid))}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
@@ -533,8 +528,8 @@ export default function ItemDetailPage() {
                       </div>
                       {d.note && <div className="mt-12 fs12 text2">備註：{d.note}</div>}
                       {d.invalid && (
-                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
-                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                        <div className="fs12 mt-12" style={{ color: splitIssueColor(d.invalid) }}>
+                          {splitIssueText(d.invalid)}
                         </div>
                       )}
                       {renderSharePreview(d, i)}
@@ -636,8 +631,8 @@ export default function ItemDetailPage() {
                         />
                       </div>
                       {d.invalid && (
-                        <div className="fs12 mt-12" style={{ color: "var(--danger)" }}>
-                          {INVALID_SPLIT[d.invalid] ?? "這筆無法分攤"}
+                        <div className="fs12 mt-12" style={{ color: splitIssueColor(d.invalid) }}>
+                          {splitIssueText(d.invalid)}
                         </div>
                       )}
                       {renderShareEditor(d, i)}

@@ -12,6 +12,7 @@ export interface DetailShare {
   detail_id: number;
   amount: number;
   shares: { member_id: number; amount: number }[];
+  validity?: string;
 }
 
 export interface SharesResponse {
@@ -65,8 +66,27 @@ export async function getMyDetails(eventId: number): Promise<MyDetails> {
   };
 }
 
+export interface InvalidSplitLine {
+  item_id: number;
+  detail_id: number;
+  code: string;
+}
+
+/** Transfers can't be balanced while any saved line is invalid. */
+export class InvalidSplitsError extends Error {
+  constructor(readonly lines: InvalidSplitLine[]) {
+    super(`有 ${lines.length} 筆細項需要調整`);
+  }
+}
+
 export async function getTransfers(eventId: number): Promise<TransfersResponse> {
   const res = await apiFetch(`${BASE_URL}/events/${eventId}/transfers`);
+  if (res.status === 422) {
+    const data = await res.clone().json().catch(() => null);
+    if (Array.isArray(data?.details) && data.details.length > 0) {
+      throw new InvalidSplitsError(data.details);
+    }
+  }
   if (!res.ok) {
     throw new Error(await readApiError(res, "取得付款流向失敗"));
   }

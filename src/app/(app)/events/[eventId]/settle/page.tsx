@@ -6,6 +6,7 @@ import { useStore } from "@/store";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { patchSettlementNote, settleEvent } from "@/api/settlement";
 import { useSettlementPreview } from "@/hooks/useSettlementPreview";
+import InvalidSplitsNotice from "@/components/features/InvalidSplitsNotice";
 import { money } from "@/lib/formatters";
 
 export default function SettlePage() {
@@ -16,7 +17,7 @@ export default function SettlePage() {
   const openMenu = useStore((s) => s.openMenu);
   const setSettled = useStore((s) => s.setSettled);
 
-  const { loading, error, event, preview } = useSettlementPreview(eventId);
+  const { loading, error, event, preview, invalid } = useSettlementPreview(eventId);
   const [noteDraft, setNoteDraft] = useState<string | null>(null);
   const [noteEventId, setNoteEventId] = useState(eventId);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -58,6 +59,10 @@ export default function SettlePage() {
 
   if (loading || (event && (event.my_role !== "host" || event.settled))) {
     return <div className="page-shell">載入中…</div>;
+  }
+
+  if (event && invalid) {
+    return <div className="page-shell"><InvalidSplitsNotice event={event} lines={invalid} /></div>;
   }
 
   if (error || !preview) {

@@ -11,6 +11,7 @@ import { money, num } from "@/lib/formatters";
 import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
+import { blocksSave, splitIssueColor, splitIssueText } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -21,12 +22,6 @@ interface ShareRow {
   tags: string[];
   amount: number;
 }
-
-const INVALID_SPLIT: Record<string, string> = {
-  "no-participant": "沒有人分攤這筆，請調整標籤或人員條件",
-  "custom-mismatch": "指定金額加總與品項金額不符",
-  "custom-overflow": "指定金額超過品項金額",
-};
 
 interface SharePreview {
   rows: ShareRow[];
@@ -111,7 +106,7 @@ export default function AddItemPage() {
   };
 
   const hasInvalid = draft.details.some(
-    (d) => buildSharePreview(d, members, rules, engineReady)?.invalid,
+    (d) => blocksSave(buildSharePreview(d, members, rules, engineReady)?.invalid),
   );
 
   const handleSubmit = async () => {
@@ -162,8 +157,8 @@ export default function AddItemPage() {
           </button>
         </div>
         {preview?.invalid && (
-          <div className="fs12 mt-10" style={{ color: "var(--danger)" }}>
-            {INVALID_SPLIT[preview.invalid] ?? "這筆無法分攤"}
+          <div className="fs12 mt-10" style={{ color: splitIssueColor(preview.invalid) }}>
+            {splitIssueText(preview.invalid)}
           </div>
         )}
         {open && rows && (
