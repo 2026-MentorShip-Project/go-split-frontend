@@ -409,6 +409,48 @@ export async function updateRuleApi(
   return mapRuleFromApi(await res.json());
 }
 
+export interface RuleDraftIssue {
+  item_tag?: string;
+  member_id?: number;
+  code: string;
+  detail: string;
+}
+
+export interface RuleDraft {
+  note?: string;
+  newItemTags: string[];
+  newCondTags: string[];
+  rules: { op: "create" | "replace"; rule: Rule; note?: string }[];
+  memberConds: { memberId: number; add: string[] }[];
+  issues: RuleDraftIssue[];
+}
+
+/** Resolves to null when the server has rule drafting turned off (503). */
+export async function draftRules(eventId: number, text: string): Promise<RuleDraft | null> {
+  const res = await apiPost(`${BASE_URL}/events/${eventId}/rules/draft`, { text });
+  if (res.status === 503) return null;
+  if (!res.ok) {
+    const fallback = res.status === 502 ? "草擬暫時失敗，請再試一次" : "草擬分攤規則失敗";
+    throw new Error(await readApiError(res, fallback));
+  }
+  const { plan, issues } = await res.json();
+  return {
+    note: plan.note,
+    newItemTags: plan.new_item_tags ?? [],
+    newCondTags: plan.new_cond_tags ?? [],
+    rules: (plan.rules ?? []).map((r: Record<string, unknown>) => ({
+      op: r.op,
+      rule: mapRuleFromApi(r),
+      note: r.note,
+    })),
+    memberConds: (plan.member_conds ?? []).map((m: { member_id: number; add: string[] }) => ({
+      memberId: m.member_id,
+      add: m.add,
+    })),
+    issues: issues ?? [],
+  };
+}
+
 export async function deleteRuleApi(eventId: number, ruleId: number): Promise<void> {
   const res = await apiDelete(`${BASE_URL}/events/${eventId}/rules/${ruleId}`);
   if (!res.ok) {
