@@ -103,6 +103,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, [eventId, pathname, setRole]);
 
+  const tourKey = tourKeyFor(pathname);
+
   const activeScreen = useMemo(() => {
     if (!pathname) return "";
     if (pathname === "/dashboard") return "home";
@@ -149,17 +151,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           });
         break;
       case "tour":
-        if (!eventId) break;
-        const tourKey = tourKeyFor(pathname);
-        if (tourKey) {
-          setTourReplay(tourKey);
-        } else {
-          setTourReplay("event");
-          router.push(ROUTES.EVENTS.DETAIL(eventId));
-        }
+        if (tourKey) setTourReplay(tourKey);
         break;
     }
-  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, pathname]);
+  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, tourKey]);
 
   return (
     <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
@@ -173,6 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               isGuest={isGuest}
               isArchived={isArchived}
               showNav={showNav}
+              hasTour={tourKey !== null}
             />
           )}
           <div className="app-scroll">{children}</div>
@@ -187,6 +183,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             isHost={isHost}
             isGuest={isGuest}
             isArchived={isArchived}
+            hasTour={tourKey !== null}
           />
         )}
       </div>
