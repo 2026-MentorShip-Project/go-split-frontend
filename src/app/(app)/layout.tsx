@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import Drawer from "@/components/layout/Drawer";
@@ -45,6 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     archived: boolean;
     settled: boolean;
   } | null>(null);
+  const fetchedEventIdRef = useRef<string | null>(null);
   const isArchived = eventMeta?.eventId === eventId && eventMeta.archived;
   const isSettled = eventMeta?.eventId === eventId && eventMeta.settled;
 
@@ -73,7 +74,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [cur, isGuest, pathname, router]);
 
   useEffect(() => {
-    if (!eventId) return;
+    if (!eventId) {
+      fetchedEventIdRef.current = null;
+      return;
+    }
+    // Same event, different sub-route (e.g. item → event detail): skip refetch.
+    if (fetchedEventIdRef.current === eventId) return;
+    fetchedEventIdRef.current = eventId;
 
     let cancelled = false;
     getEvent(Number(eventId))

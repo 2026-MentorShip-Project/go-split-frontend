@@ -157,7 +157,7 @@ textarea.input{ resize:none; line-height:1.6; }
 .dialog-title{ font-size:20px; font-weight:700; color:var(--text); text-align:center; }
 .dialog-title--danger{ color:var(--danger); }
 .dialog-body{ margin-top:10px; font-size:14px; color:var(--text2); line-height:1.75; text-align:center; }
-.dialog-actions{ margin-top:20px; display:flex; gap:10px; }
+.dialog-actions{ margin-top:20px; display:flex; gap:10px;justify-content: center; }
 .dialog-actions .btn{ flex:1; padding:14px; border-radius:99px; font-size:16px; width:auto; }
 .dialog-btn-cancel{ background:#fff; color:var(--text2); border:1px solid var(--ln-control); }
 .dialog-btn-cancel:hover{ background:var(--bg-neutral); border-color:#B9C6C3; border-width:2px; color:var(--text); }

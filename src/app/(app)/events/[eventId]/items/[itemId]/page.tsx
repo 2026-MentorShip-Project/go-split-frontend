@@ -7,6 +7,7 @@ import Input from "@/components/ui/Input";
 import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import Dot from "@/components/ui/Dot";
+import Dialog from "@/components/ui/Dialog";
 import {
   BackIcon, CheckIcon, EditIcon, TrashIcon, StarIcon, ChevDownIcon,
   LockIcon, UnlockIcon,
@@ -137,7 +138,6 @@ export default function ItemDetailPage() {
   const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
-  const setDelAsk = useStore((s) => s.setDelAsk);
 
   const [details, setDetails] = useState<LocalDetail[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -150,6 +150,8 @@ export default function ItemDetailPage() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [payerId, setPayerId] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -277,6 +279,7 @@ export default function ItemDetailPage() {
       setDetails(res.details.map(apiDetailToLocal));
       setDirty(false);
       setEditDetail(null);
+      router.push(`/events/${eventId}`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "更新款項失敗");
     } finally {
@@ -285,11 +288,15 @@ export default function ItemDetailPage() {
   };
 
   const handleDeleteItem = async () => {
+    if (deleting) return;
+    setDeleting(true);
     try {
       await deleteItem(eventId, itemId);
+      setShowDeleteDialog(false);
       router.push(`/events/${eventId}`);
     } catch (e) {
       alert(e instanceof Error ? e.message : "刪除款項失敗");
+      setDeleting(false);
     }
   };
 
@@ -475,7 +482,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty || details.some((d) => d.invalid)}
+                disabled={saving || !dirty || details.length === 0 || details.some((d) => d.invalid)}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
@@ -483,7 +490,7 @@ export default function ItemDetailPage() {
               <IconButton
                 variant="danger"
                 title="刪除這筆款項"
-                onClick={() => setDelAsk(handleDeleteItem)}
+                onClick={() => setShowDeleteDialog(true)}
               >
                 <TrashIcon size={18} />
               </IconButton>
@@ -656,6 +663,34 @@ export default function ItemDetailPage() {
           </div>
         </div>
       </div>
+
+      {showDeleteDialog && (
+        <Dialog
+          title="刪除這筆款項"
+          body="刪除後無法復原，確定要刪除嗎？"
+          danger
+          onClose={() => setShowDeleteDialog(false)}
+          actions={
+            <>
+              <button
+                className="btn-pill"
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deleting}
+              >
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => void handleDeleteItem()}
+                disabled={deleting}
+              >
+                {deleting ? "刪除中…" : "確認刪除"}
+              </button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }
