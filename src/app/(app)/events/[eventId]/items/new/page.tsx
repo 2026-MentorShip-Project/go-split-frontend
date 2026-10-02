@@ -11,7 +11,7 @@ import { money, num } from "@/lib/formatters";
 import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
-import { PAYER_ABSORBS_NOTE, splitIssueText } from "@/lib/split-validity";
+import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
@@ -25,7 +25,6 @@ interface ShareRow {
 
 interface SharePreview {
   rows: ShareRow[];
-  invalid: string | null;
   payerAbsorbs: boolean;
 }
 
@@ -47,7 +46,6 @@ function buildSharePreview(
         tags: m.tags ?? [],
         amount: result.map[m.id] ?? 0,
       })),
-      invalid: result.validity !== "ok" ? result.validity : null,
       payerAbsorbs: result.payerAbsorbs,
     };
   } catch {
@@ -111,14 +109,9 @@ export default function AddItemPage() {
     setDraftEdit(details.length - 1);
   };
 
-  const hasInvalid = draft.details.some(
-    (d) => buildSharePreview(d, members, rules, engineReady, payerId)?.invalid,
-  );
-
   const handleSubmit = async () => {
     if (draft.details.length === 0) return;
     if (!myMemberId) return;
-    if (hasInvalid) return;
 
     setSubmitting(true);
     try {
@@ -162,11 +155,6 @@ export default function AddItemPage() {
             共計 {rows === null ? "…" : count} 人分攤
           </button>
         </div>
-        {preview?.invalid && (
-          <div className="fs12 mt-10" style={{ color: "var(--danger)" }}>
-            {splitIssueText(preview.invalid)}
-          </div>
-        )}
         {preview?.payerAbsorbs && (
           <div className="fs12 mt-10" style={{ color: "var(--tag-item-fg)" }}>{PAYER_ABSORBS_NOTE}</div>
         )}
@@ -208,7 +196,7 @@ export default function AddItemPage() {
             variant="soft"
             title="儲存款項"
             onClick={handleSubmit}
-            disabled={submitting || hasInvalid}
+            disabled={submitting}
             style={{ marginLeft: "auto" }}
           >
             <CheckIcon size={18} />

@@ -7,8 +7,7 @@ import Button from "@/components/ui/Button";
 import Dialog from "@/components/ui/Dialog";
 import { money } from "@/lib/formatters";
 import { getEvent, archiveEvent, type EventDetail } from "@/api/event";
-import { getShares, getTransfers, InvalidSplitsError, type InvalidSplitLine, type SharesResponse, type TransfersResponse } from "@/api/settlement";
-import InvalidSplitsNotice from "@/components/features/InvalidSplitsNotice";
+import { getShares, getTransfers, type SharesResponse, type TransfersResponse } from "@/api/settlement";
 
 export default function PaymentsPage() {
   const router = useRouter();
@@ -21,7 +20,6 @@ export default function PaymentsPage() {
   const [transfers, setTransfers] = useState<TransfersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [invalid, setInvalid] = useState<InvalidSplitLine[] | null>(null);
   const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
@@ -31,20 +29,17 @@ export default function PaymentsPage() {
     async function load() {
       setLoading(true);
       try {
-        const event = await getEvent(eventId);
-        if (cancelled) return;
-        setEv(event);
-        const [sharesData, transfersData] = await Promise.all([
+        const [event, sharesData, transfersData] = await Promise.all([
+          getEvent(eventId),
           getShares(eventId),
           getTransfers(eventId),
         ]);
         if (cancelled) return;
+        setEv(event);
         setShares(sharesData);
         setTransfers(transfersData);
       } catch (e) {
-        if (cancelled) return;
-        if (e instanceof InvalidSplitsError) setInvalid(e.lines);
-        else setError(e instanceof Error ? e.message : "載入失敗");
+        if (!cancelled) setError(e instanceof Error ? e.message : "載入失敗");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -73,10 +68,10 @@ export default function PaymentsPage() {
   };
 
   if (loading) return <div className="page-shell">載入中…</div>;
-  if (error || !ev || (!invalid && (!shares || !transfers))) return <div className="page-shell">{error ?? "載入失敗"}</div>;
+  if (error || !ev || !shares || !transfers) return <div className="page-shell">{error ?? "載入失敗"}</div>;
 
   const memberById = Object.fromEntries(ev.members.map((m) => [m.id, m]));
-  const transferList = transfers?.transfers ?? [];
+  const transferList = transfers.transfers ?? [];
 
   return (
     <div className="page-shell">
@@ -89,32 +84,28 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {invalid ? (
-        <InvalidSplitsNotice event={ev} lines={invalid} />
-      ) : (
-        <div className="grid-cards mt-10">
-          {transferList.map((t) => {
-            const from = memberById[t.from_id];
-            const to = memberById[t.to_id];
-            return (
-              <div
-                key={`${t.from_id}-${t.to_id}`}
-                className="card card-pad flex between items-center gap-12"
-              >
-                <span className="fs14">
-                  {from?.display ?? `#${t.from_id}`} → {to?.display ?? `#${t.to_id}`}
-                </span>
-                <span className="fs16 fw700">{money(Math.round(t.amount))}</span>
-              </div>
-            );
-          })}
-          {transferList.length === 0 && (
-            <div className="empty-box">所有款項已平衡，無需轉帳</div>
-          )}
-        </div>
-      )}
+      <div className="grid-cards mt-10">
+        {transferList.map((t) => {
+          const from = memberById[t.from_id];
+          const to = memberById[t.to_id];
+          return (
+            <div
+              key={`${t.from_id}-${t.to_id}`}
+              className="card card-pad flex between items-center gap-12"
+            >
+              <span className="fs14">
+                {from?.display ?? `#${t.from_id}`} → {to?.display ?? `#${t.to_id}`}
+              </span>
+              <span className="fs16 fw700">{money(Math.round(t.amount))}</span>
+            </div>
+          );
+        })}
+        {transferList.length === 0 && (
+          <div className="empty-box">所有款項已平衡，無需轉帳</div>
+        )}
+      </div>
 
-      {!ev.archived && !invalid && (
+      {!ev.archived && (
         <Button className="mt-20" onClick={() => setShowArchiveDialog(true)}>
           結清活動
         </Button>

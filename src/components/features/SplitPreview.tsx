@@ -5,12 +5,6 @@ import { membersByEngineId, splitOneDetail } from "@/lib/engine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 import type { Trace } from "@go-split/engine";
 
-const INVALID_TEXT: Record<string, string> = {
-  "no-participant": "沒有人符合，這筆將由付款人全額負擔",
-  "custom-mismatch": "指定金額加總與品項金額不符",
-  "custom-overflow": "指定金額超過品項金額",
-};
-
 function reason(trace: Trace): string {
   const conds = (trace.hit_cond_tags ?? []).join("、");
   switch (trace.kind) {
@@ -48,16 +42,10 @@ export default function SplitPreview({ detail, members, rules }: SplitPreviewPro
   return (
     <div>
       <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤預覽</div>
-      {result.validity !== "ok" && (
-        <div
-          className="fs12"
-          style={{
-            // A rule nobody matches is not an error: the payer absorbs it.
-            color: result.validity === "no-participant" ? "var(--tag-item-fg)" : "var(--danger)",
-            marginBottom: 6,
-          }}
-        >
-          {INVALID_TEXT[result.validity] ?? "無法分攤"}
+      {/* Without a payer to absorb it, a rule nobody matches leaves no sharer. */}
+      {result.validity === "no-participant" && (
+        <div className="fs12" style={{ color: "var(--tag-item-fg)", marginBottom: 6 }}>
+          沒有人符合，這筆將由付款人全額負擔
         </div>
       )}
       {rows.map((share) => (
