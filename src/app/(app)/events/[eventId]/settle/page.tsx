@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@/store";
 import ErrorBanner from "@/components/ui/ErrorBanner";
+import Dialog from "@/components/ui/Dialog";
 import { patchSettlementNote, settleEvent } from "@/api/settlement";
 import { useSettlementPreview } from "@/hooks/useSettlementPreview";
 import { money } from "@/lib/formatters";
@@ -21,6 +22,7 @@ export default function SettlePage() {
   const [noteEventId, setNoteEventId] = useState(eventId);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   if (noteEventId !== eventId) {
     setNoteEventId(eventId);
@@ -42,6 +44,7 @@ export default function SettlePage() {
 
   const handleSettle = async () => {
     if (submitting) return;
+    setConfirming(false);
     setSubmitting(true);
     setActionError(null);
     try {
@@ -191,10 +194,33 @@ export default function SettlePage() {
         />
       </div>
 
+      {confirming && (
+        <Dialog
+          title="確定要結帳嗎？"
+          body="結帳後款項、成員與規則都會鎖定，分攤結果和付款流向也不能再更改。"
+          danger
+          onClose={() => setConfirming(false)}
+          actions={
+            <>
+              <button className="btn-pill" onClick={() => setConfirming(false)}>
+                取消
+              </button>
+              <button
+                className="btn-pill"
+                style={{ background: "var(--danger)", color: "#fff", border: "none" }}
+                onClick={() => void handleSettle()}
+              >
+                確認結帳
+              </button>
+            </>
+          }
+        />
+      )}
+
       <div className="bottom-cta">
         <button
           className="btn btn-primary btn-cta-lg"
-          onClick={() => void handleSettle()}
+          onClick={() => setConfirming(true)}
           disabled={submitting}
         >
           {submitting ? "結帳中…" : "確認結帳產出"}

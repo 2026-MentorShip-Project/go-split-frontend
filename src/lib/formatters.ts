@@ -38,6 +38,12 @@ export function fmtIsoDatetime(s: string): string {
   return s.slice(0, 16).replace('T', ' ');
 }
 
+/** Event dates are calendar days (YYYY-MM-DD); either end may be empty. */
+export function fmtDateRange(start: string, end: string): string {
+  if (!start || !end || start === end) return start || end || '';
+  return start + '～' + end;
+}
+
 export function roleName(r: RoleType): string {
   return r === 'host' ? '主辦者' : r === 'co' ? '協辦者' : '參與者';
 }

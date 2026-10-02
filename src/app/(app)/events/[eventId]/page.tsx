@@ -7,7 +7,7 @@ import { useShallow } from "zustand/shallow";
 import Chip from "@/components/ui/Chip";
 import IconButton from "@/components/ui/IconButton";
 import { PlusIcon } from "@/components/icons";
-import { money } from "@/lib/formatters";
+import { money, fmtDateRange } from "@/lib/formatters";
 import { getEvent, type EventDetail } from "@/api/event";
 import { getMyDetails, getShares, type MyDetails } from "@/api/settlement";
 import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
@@ -132,7 +132,7 @@ export default function EventPage() {
             <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>
               時間地點
             </span>
-            <span className="fs14">{ev.created_at?.slice(0, 10) ?? ""} · {ev.place}</span>
+            <span className="fs14">{[fmtDateRange(ev.starts_at, ev.ends_at), ev.place].filter(Boolean).join(" · ")}</span>
           </div>
           <button
             className="icon-btn"
