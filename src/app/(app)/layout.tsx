@@ -16,6 +16,7 @@ const TOUR_PAGES: [RegExp, string][] = [
   [/^\/events\/\d+\/rules$/, "rules"],
   [/^\/events\/\d+\/items\/new$/, "item-new"],
   [/^\/events\/\d+\/group$/, "group"],
+  [/^\/events\/\d+\/settle$/, "settle"],
 ];
 
 function tourKeyFor(pathname: string | null): string | null {
