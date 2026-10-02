@@ -2,6 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { ExpenseItem, Draft } from '@/lib/types';
 
 export interface ItemSlice {
+  eventId: number;
   itemsBy: Record<number, ExpenseItem[]>;
   paidBy2: Record<number, Record<string, boolean>>;
   draft: Draft;
@@ -23,8 +24,9 @@ export interface ItemSlice {
   tagQuery: Record<string, string>;
   backFrom: string | null;
 
+  setEventId: (eventId: number) => void;
   setItemsBy: (itemsBy: Record<number, ExpenseItem[]>) => void;
-  updateItemsForEvent: (eventIdx: number, items: ExpenseItem[]) => void;
+  updateItemsForEvent: (eventId: number, items: ExpenseItem[]) => void;
   setPaidBy2: (paidBy2: Record<number, Record<string, boolean>>) => void;
   setDraft: (draft: Draft) => void;
   patchDraft: (patch: Partial<Draft>) => void;
@@ -148,6 +150,7 @@ const defaultItemsBy: Record<number, ExpenseItem[]> = {
 };
 
 export const createItemSlice: StateCreator<ItemSlice, [], [], ItemSlice> = (set) => ({
+  eventId: 0,
   itemsBy: defaultItemsBy,
   paidBy2: { 0: {}, 1: {}, 2: { '010013>010011': true }, 3: {}, 4: {}, 5: {}, 6: {}, 7: { '010014>010011': true }, 8: {}, 9: {} },
   draft: { receipt: false, details: [] },
@@ -169,9 +172,10 @@ export const createItemSlice: StateCreator<ItemSlice, [], [], ItemSlice> = (set)
   tagQuery: {},
   backFrom: null,
 
+  setEventId: (eventId) => set({ eventId }),
   setItemsBy: (itemsBy) => set({ itemsBy }),
-  updateItemsForEvent: (eventIdx, items) =>
-    set((s) => ({ itemsBy: { ...s.itemsBy, [eventIdx]: items } })),
+  updateItemsForEvent: (eventId, items) =>
+    set((s) => ({ itemsBy: { ...s.itemsBy, [eventId]: items } })),
   setPaidBy2: (paidBy2) => set({ paidBy2 }),
   setDraft: (draft) => set({ draft }),
   patchDraft: (patch) => set((s) => ({ draft: { ...s.draft, ...patch } })),
