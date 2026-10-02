@@ -8,6 +8,7 @@ import Input from "@/components/ui/Input";
 import { roleName, fmtIsoDatetime } from "@/lib/formatters";
 import { getEvents, joinEvent, type EventListItem } from "@/api/event";
 import { logout } from "@/api/auth";
+import { ROUTES } from "@/lib/routes";
 
 export default function HomePage() {
   const router = useRouter();
@@ -85,6 +86,14 @@ export default function HomePage() {
     }
   }, [code, router, setCur]);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+    } finally {
+      window.location.href = ROUTES.LOGIN;
+    }
+  }, []);
+
   return (
     <div className="page-shell">
       <div className="topbar">
@@ -108,7 +117,7 @@ export default function HomePage() {
               <button
                 className="btn-pill"
                 style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--ln-control)" }}
-                onClick={() => { logout().finally(() => { window.location.href = "/login"; }); }}
+                onClick={handleLogout}
               >
                 登出
               </button>
