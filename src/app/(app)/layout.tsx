@@ -152,7 +152,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, activeScreen]);
 
   return (
-    <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div
+      id="app-root"
+      className={showNav ? undefined : "no-rail"}
+      style={{ height: "100dvh", display: "flex", flexDirection: "column" }}
+    >
       <div className="app-body">
         <div className="app-row">
           {showNav && (
