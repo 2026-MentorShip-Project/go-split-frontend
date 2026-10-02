@@ -49,7 +49,14 @@ export default function SplitPreview({ detail, members, rules }: SplitPreviewPro
     <div>
       <div className="fs12 text2" style={{ marginBottom: 6 }}>分攤預覽</div>
       {result.validity !== "ok" && (
-        <div className="fs12" style={{ color: "var(--danger)", marginBottom: 6 }}>
+        <div
+          className="fs12"
+          style={{
+            // A rule nobody matches is not an error: the payer absorbs it.
+            color: result.validity === "no-participant" ? "var(--tag-item-fg)" : "var(--danger)",
+            marginBottom: 6,
+          }}
+        >
           {INVALID_TEXT[result.validity] ?? "無法分攤"}
         </div>
       )}
