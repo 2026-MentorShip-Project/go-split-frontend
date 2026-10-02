@@ -18,8 +18,6 @@ function reason(trace: Trace): string {
       return trace.weight === 1 ? "其他人員" : `其他人員，權重 ×${trace.weight}`;
     case "custom":
       return "指定金額";
-    case "payer-absorbs":
-      return "無人符合，由付款人負擔";
     default:
       return "均分";
   }
