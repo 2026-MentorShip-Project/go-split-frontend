@@ -20,7 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { menuOpen, menuIn, guest, role, cur, closeMenu, setRole } = useStore(
+  const { menuOpen, menuIn, guest, role, cur, closeMenu, setRole, setTourReplay } = useStore(
     useShallow((s) => ({
       menuOpen: s.menuOpen,
       menuIn: s.menuIn,
@@ -29,6 +29,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       cur: s.cur,
       closeMenu: s.closeMenu,
       setRole: s.setRole,
+      setTourReplay: s.setTourReplay,
     }))
   );
 
@@ -133,8 +134,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           });
         break;
+      case "tour":
+        if (!eventId) break;
+        setTourReplay("event");
+        if (activeScreen !== "event") router.push(ROUTES.EVENTS.DETAIL(eventId));
+        break;
     }
-  }, [closeMenu, router, eventId, isSettled, setRole]);
+  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, activeScreen]);
 
   return (
     <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>

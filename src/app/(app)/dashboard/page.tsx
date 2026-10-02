@@ -9,6 +9,13 @@ import { roleName, fmtIsoDatetime } from "@/lib/formatters";
 import { getEvents, joinEvent, type EventListItem } from "@/api/event";
 import { logout } from "@/api/auth";
 import { ROUTES } from "@/lib/routes";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const DASHBOARD_TOUR: TourStep[] = [
+  { target: '[data-tour="create-event"]', title: "新增活動", description: "建立一個新活動，邀請朋友一起記帳分攤。" },
+  { target: '[data-tour="join-event"]', title: "用邀請碼加入", description: "收到朋友的邀請碼？輸入後即可加入他們的活動。" },
+  { target: '[data-tour="active-events"]', title: "進行中的活動", description: "你參與的活動會列在這裡，點進去查看款項與分帳。" },
+];
 
 export default function HomePage() {
   const router = useRouter();
@@ -20,6 +27,7 @@ export default function HomePage() {
     }))
   );
   const setUserName = useStore((s) => s.setUserName);
+  const setTourReplay = useStore((s) => s.setTourReplay);
 
   const { setCur, code, setCode, setGuest } = useStore(
     useShallow((s) => ({
@@ -46,6 +54,8 @@ export default function HomePage() {
       .catch(console.error)
       .finally(() => setEventsLoading(false));
   }, []);
+
+  useTour("dashboard", DASHBOARD_TOUR, !eventsLoading);
 
   const isAccount = !guest;
   const isGuest = guest;
@@ -113,6 +123,13 @@ export default function HomePage() {
             </span>
           </span>
           <span className="flex items-center gap-8">
+            <button
+              className="btn-pill"
+              style={{ fontSize: 14, padding: "4px 10px", border: "1px solid var(--ln-control)" }}
+              onClick={() => setTourReplay("dashboard")}
+            >
+              導覽
+            </button>
             {isAccount && (
               <button
                 className="btn-pill"
@@ -150,6 +167,7 @@ export default function HomePage() {
 
       {isAccount && (
         <button
+          data-tour="create-event"
           className="btn-primary mt-16"
           style={{
             width: "100%", textAlign: "left", padding: 20, border: "none",
@@ -171,7 +189,7 @@ export default function HomePage() {
         </button>
       )}
 
-      <div className="flex gap-10 items-center mt-12">
+      <div data-tour="join-event" className="flex gap-10 items-center mt-12">
         <Input
           value={code}
           onChange={(e) => setCode(e.target.value)}
@@ -181,7 +199,7 @@ export default function HomePage() {
         <button className="btn-pill" onClick={handleJoinByCode}>加入</button>
       </div>
 
-      <div className="section-title mt-24">進行中的活動</div>
+      <div data-tour="active-events" className="section-title mt-24">進行中的活動</div>
       <div className="grid-cards mt-10">
         {eventsLoading && <div className="empty-box">載入中…</div>}
         {activeEvents.map((ev) => (

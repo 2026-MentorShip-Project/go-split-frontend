@@ -87,6 +87,15 @@ export default function Drawer({
                 ))}
               </>
             )}
+
+            {!isArchived && (
+              <li>
+                <button className="drawer-item" onClick={() => handleNav("tour")}>
+                  <span className="drawer-item-label">使用導覽</span>
+                  <span className="drawer-item-caret">›</span>
+                </button>
+              </li>
+            )}
           </ul>
         </div>
       </div>

@@ -12,6 +12,7 @@ export interface UISlice {
   evNameTouched: boolean;
   joinTouched: boolean;
   dragG: number | null;
+  tourReplay: string | null;
 
   setMenuOpen: (v: boolean) => void;
   setMenuIn: (v: boolean) => void;
@@ -25,6 +26,7 @@ export interface UISlice {
   setEvNameTouched: (v: boolean) => void;
   setJoinTouched: (v: boolean) => void;
   setDragG: (i: number | null) => void;
+  setTourReplay: (key: string | null) => void;
   openMenu: () => void;
   closeMenu: () => void;
 }
@@ -41,6 +43,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (set) => ({
   evNameTouched: false,
   joinTouched: false,
   dragG: null,
+  tourReplay: null,
 
   setMenuOpen: (v) => set({ menuOpen: v }),
   setMenuIn: (v) => set({ menuIn: v }),
@@ -55,6 +58,7 @@ export const createUISlice: StateCreator<UISlice, [], [], UISlice> = (set) => ({
   setEvNameTouched: (v) => set({ evNameTouched: v }),
   setJoinTouched: (v) => set({ joinTouched: v }),
   setDragG: (i) => set({ dragG: i }),
+  setTourReplay: (key) => set({ tourReplay: key }),
   openMenu: () => set({ menuOpen: true, menuIn: true }),
   closeMenu: () => {
     set({ menuIn: false });

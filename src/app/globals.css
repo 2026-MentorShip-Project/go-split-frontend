@@ -257,3 +257,12 @@ textarea.input{ resize:none; line-height:1.6; }
 .divider{ height:1px; background:var(--ln-control); margin:0; }
 
 @media (max-width:767px){ .app-scroll{ -webkit-overflow-scrolling:touch; } }
+
+/* ---------- onboarding tour (driver.js) ---------- */
+.driver-popover.gs-tour{ color:var(--text); background:var(--bg-card); border-radius:8px; padding:16px 20px; }
+.driver-popover.gs-tour .driver-popover-title{ font-size:16px; font-weight:700; }
+.driver-popover.gs-tour .driver-popover-description{ font-size:14px; color:var(--text2); line-height:1.6; }
+.driver-popover.gs-tour .driver-popover-progress-text{ font-size:12px; color:var(--text3); }
+.driver-popover.gs-tour .driver-popover-footer-btn{ border-radius:99px; padding:6px 14px; font-size:14px; text-shadow:none; border:1px solid var(--ln-control); color:var(--text); background:#fff; }
+.driver-popover.gs-tour .driver-popover-next-btn{ background:var(--teal); border-color:var(--teal); color:#fff; }
+.driver-popover.gs-tour .driver-popover-next-btn:hover{ background:var(--teal-hover); }

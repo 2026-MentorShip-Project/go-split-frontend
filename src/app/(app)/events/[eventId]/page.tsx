@@ -11,6 +11,15 @@ import { money, fmtDateRange } from "@/lib/formatters";
 import { getEvent, type EventDetail } from "@/api/event";
 import { getMyDetails, getShares, type MyDetails } from "@/api/settlement";
 import { PAYER_ABSORBS_NOTE } from "@/lib/split-validity";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const EVENT_TOUR: TourStep[] = [
+  { target: '[data-tour="event-nav"]', title: "活動選單", description: "在這裡切換活動款項、分攤規則，主辦者還能管理群組與分帳。" },
+  { target: '[data-tour="event-menu"]', title: "活動選單", description: "點這裡打開選單，切換活動款項、分攤規則，主辦者還能管理群組與分帳。" },
+  { target: '[data-tour="add-item"]', title: "新增款項", description: "誰先付了錢，就在這裡記一筆，系統會依規則自動分攤。" },
+  { target: '[data-tour="event-info"]', title: "活動資訊", description: "時間地點、你的身份，以及影響分攤的人員條件。" },
+  { target: '[data-tour="event-items"]', title: "款項現況", description: "所有已記錄的款項，點進去可以看明細與每個人的分攤。" },
+];
 
 export default function EventPage() {
   const router = useRouter();
@@ -73,6 +82,8 @@ export default function EventPage() {
     return () => { cancelled = true; };
   }, [eventId]);
 
+  useTour("event", EVENT_TOUR, !loading && ev !== null);
+
   if (loading) return <div className="page-shell">載入中…</div>;
   if (error || !ev) return <div className="page-shell">{error ?? "活動不存在"}</div>;
 
@@ -108,12 +119,13 @@ export default function EventPage() {
     <div className="page-shell">
       <div className="topbar">
         <div className="topbar-row topbar-row--start">
-          <button className="icon-btn hamburger" title="更多操作" onClick={openMenu}>
+          <button data-tour="event-menu" className="icon-btn hamburger" title="更多操作" onClick={openMenu}>
             <span /><span /><span />
           </button>
           <span className="topbar-title">{ev.name}</span>
           {canAddItem && (
             <IconButton
+              data-tour="add-item"
               variant="primary"
               title="新增款項"
               onClick={() => router.push(`/events/${eventId}/items/new`)}
@@ -126,7 +138,7 @@ export default function EventPage() {
       </div>
 
       {/* Event Info Card */}
-      <div className="card mt-16" style={{ padding: "16px 20px" }}>
+      <div data-tour="event-info" className="card mt-16" style={{ padding: "16px 20px" }}>
         <div className="flex items-start gap-12">
           <div className="grow flex items-center gap-12 wrap" style={{ alignItems: "baseline" }}>
             <span style={{ flex: "none", fontSize: 16, color: "var(--text)", minWidth: 72, fontWeight: 500 }}>
@@ -253,7 +265,7 @@ export default function EventPage() {
           )}
 
           {/* Items (read-only) */}
-          <div className="section-title mt-20">款項現況（結帳不可編輯）</div>
+          <div data-tour="event-items" className="section-title mt-20">款項現況（結帳不可編輯）</div>
           <div className="grid-cards mt-10">
             {ev.items.map((it) => {
               const payer = memberById[it.payer_member_id];
@@ -288,7 +300,7 @@ export default function EventPage() {
       ) : (
         <>
           {/* Items (active) */}
-          <div className="mt-20 flex items-baseline between wrap gap-6">
+          <div data-tour="event-items" className="mt-20 flex items-baseline between wrap gap-6">
             <span className="section-title">款項現況</span>
             <span className="flex gap-8 wrap" style={{ justifyContent: "flex-end" }}>
               <span className="fs14">合計 {money(ev.total)}</span>

@@ -8,6 +8,7 @@ interface IconButtonProps {
   className?: string;
   style?: React.CSSProperties;
   disabled?: boolean;
+  "data-tour"?: string;
 }
 
 const variantClass: Record<string, string> = {
@@ -28,6 +29,7 @@ export default function IconButton({
   className = "",
   style,
   disabled,
+  "data-tour": dataTour,
 }: IconButtonProps) {
   return (
     <button
@@ -36,6 +38,7 @@ export default function IconButton({
       onClick={onClick}
       style={style}
       disabled={disabled || variant === "sm-disabled"}
+      data-tour={dataTour}
     >
       {children}
     </button>

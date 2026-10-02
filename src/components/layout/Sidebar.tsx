@@ -30,7 +30,7 @@ export default function Sidebar({
   const showHostItems = isHost && !isArchived;
 
   return (
-    <aside className="sidebar">
+    <aside data-tour="event-nav" className="sidebar">
       <div className="sidebar-brand">
         <span className="sidebar-logo">💰</span>
         <span className="sidebar-name">分帳吧</span>
@@ -75,6 +75,15 @@ export default function Sidebar({
                   </button>
                 ))}
               </nav>
+            </>
+          )}
+
+          {!isArchived && (
+            <>
+              <div className="sidebar-divider" />
+              <button className="sidebar-item" onClick={() => onNavigate("tour")}>
+                使用導覽
+              </button>
             </>
           )}
         </>
