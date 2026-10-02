@@ -7,7 +7,7 @@
    ========================================================================== */
 
 :root{
-  --gut:16px; --page-max:1200px; --tb:56px; --railw:0px; --railw-lg:0px;
+  --gut:16px; --page-max:1200px; --tb:56px; --railw-lg:0px;
   --rail:none; --burger:flex; --sbw:0px;
 
   /* color */
@@ -68,8 +68,8 @@ img{ max-width:100%; }
 
 /* ---------- topbar ---------- */
 .topbar{ position:sticky; top:0; z-index:6; background:rgba(255,255,255,.85); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--ln-control);
-  margin-left:calc(50% - (100vw - var(--railw) - var(--sbw))/2); margin-right:calc(50% - (100vw - var(--railw) - var(--sbw))/2); margin-top:-8px; box-sizing:border-box;
-  padding:0 calc(max(0px, (100vw - var(--railw) - var(--sbw))/2 - 600px) + var(--gut)); }
+  margin-left:calc(50% - (100vw - var(--railw-lg) - var(--sbw))/2); margin-right:calc(50% - (100vw - var(--railw-lg) - var(--sbw))/2); margin-top:-8px; box-sizing:border-box;
+  padding:0 calc(max(0px, (100vw - var(--railw-lg) - var(--sbw))/2 - 600px) + var(--gut)); }
 .topbar-row{ position:relative; min-height:var(--tb); display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .topbar-row--start{ justify-content:flex-start; }
 .topbar-title{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); max-width:calc(100% - 150px); font-size:24px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
