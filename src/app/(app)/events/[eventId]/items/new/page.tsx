@@ -22,40 +22,39 @@ interface ShareRow {
   amount: number;
 }
 
-function buildShareRows(
+const INVALID_SPLIT: Record<string, string> = {
+  "no-participant": "沒有人分攤這筆，請調整標籤或人員條件",
+  "custom-mismatch": "指定金額加總與品項金額不符",
+  "custom-overflow": "指定金額超過品項金額",
+};
+
+interface SharePreview {
+  rows: ShareRow[];
+  invalid: string | null;
+}
+
+function buildSharePreview(
   detail: ItemDetail,
   members: Member[],
   rules: Rule[],
   engineReady: boolean,
-): ShareRow[] | null {
+): SharePreview | null {
   if (!engineReady || members.length === 0) return null;
-
-  const total = typeof detail.amount === "number" ? detail.amount : num(String(detail.amount));
-
   try {
     const result = detailShares(detail, members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      return result.inc.map((m) => ({
+    return {
+      rows: result.inc.map((m) => ({
         id: m.id,
         name: m.name,
         you: !!m.you,
         tags: m.tags ?? [],
         amount: result.map[m.id] ?? 0,
-      }));
-    }
+      })),
+      invalid: result.validity !== "ok" ? result.validity : null,
+    };
   } catch {
-    // fall through to host fallback
+    return null;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) return [];
-  return [{
-    id: host.id,
-    name: host.name,
-    you: !!host.you,
-    tags: host.tags ?? [],
-    amount: total,
-  }];
 }
 
 export default function AddItemPage() {
@@ -111,9 +110,14 @@ export default function AddItemPage() {
     setDraftEdit(details.length - 1);
   };
 
+  const hasInvalid = draft.details.some(
+    (d) => buildSharePreview(d, members, rules, engineReady)?.invalid,
+  );
+
   const handleSubmit = async () => {
     if (draft.details.length === 0) return;
     if (!myMemberId) return;
+    if (hasInvalid) return;
 
     setSubmitting(true);
     try {
@@ -136,7 +140,8 @@ export default function AddItemPage() {
   };
 
   const renderSharePreview = (detail: ItemDetail, index: number) => {
-    const rows = buildShareRows(detail, members, rules, engineReady);
+    const preview = buildSharePreview(detail, members, rules, engineReady);
+    const rows = preview?.rows ?? null;
     const open = shareOpen[index] !== false;
     const count = rows?.length ?? 0;
 
@@ -156,6 +161,11 @@ export default function AddItemPage() {
             共計 {rows === null ? "…" : count} 人分攤
           </button>
         </div>
+        {preview?.invalid && (
+          <div className="fs12 mt-10" style={{ color: "var(--danger)" }}>
+            {INVALID_SPLIT[preview.invalid] ?? "這筆無法分攤"}
+          </div>
+        )}
         {open && rows && (
           <div className="grid-cards mt-10">
             {rows.map((row) => (
@@ -194,7 +204,7 @@ export default function AddItemPage() {
             variant="soft"
             title="儲存款項"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || hasInvalid}
             style={{ marginLeft: "auto" }}
           >
             <CheckIcon size={18} />

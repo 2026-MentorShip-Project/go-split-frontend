@@ -20,7 +20,7 @@ import { useSplitEngine } from "@/hooks/useSplitEngine";
 import type { ItemDetail, Member, Rule } from "@/lib/types";
 
 const INVALID_SPLIT: Record<string, string> = {
-  "no-participant": "沒有人分攤這筆，結算時會被擋下",
+  "no-participant": "沒有人分攤這筆，請調整標籤或人員條件",
   "custom-mismatch": "指定金額加總與品項金額不符",
   "custom-overflow": "指定金額超過品項金額",
 };
@@ -83,28 +83,16 @@ function tagHasRule(tags: string[], rules: Rule[]): boolean {
 function applyShareResult(detail: LocalDetail, members: Member[], rules: Rule[]): LocalDetail {
   try {
     const result = detailShares(toItemDetail(detail), members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      const shares: Record<string, number> = {};
-      for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
-      return {
-        ...detail,
-        shares,
-        invalid: result.validity !== "ok" ? result.validity : null,
-      };
-    }
+    const shares: Record<string, number> = {};
+    for (const m of result.inc) shares[m.id] = result.map[m.id] ?? 0;
+    return {
+      ...detail,
+      shares,
+      invalid: result.validity !== "ok" ? result.validity : null,
+    };
   } catch {
-    // fall through
+    return detail;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) {
-    return { ...detail, shares: {}, invalid: "no-participant" };
-  }
-  return {
-    ...detail,
-    shares: { [host.id]: num(detail.amount) },
-    invalid: null,
-  };
 }
 
 function buildShareRows(
@@ -114,33 +102,18 @@ function buildShareRows(
   engineReady: boolean,
 ): ShareRow[] | null {
   if (!engineReady || members.length === 0) return null;
-
-  const total = num(detail.amount);
-
   try {
     const result = detailShares(toItemDetail(detail), members, rules);
-    if (result.inc.length > 0 && result.validity !== "no-participant") {
-      return result.inc.map((m) => ({
-        id: m.id,
-        name: m.name,
-        you: !!m.you,
-        tags: m.tags ?? [],
-        amount: result.map[m.id] ?? 0,
-      }));
-    }
+    return result.inc.map((m) => ({
+      id: m.id,
+      name: m.name,
+      you: !!m.you,
+      tags: m.tags ?? [],
+      amount: result.map[m.id] ?? 0,
+    }));
   } catch {
-    // fall through to host fallback
+    return null;
   }
-
-  const host = members.find((m) => m.role === "主辦者") ?? members[0];
-  if (!host) return [];
-  return [{
-    id: host.id,
-    name: host.name,
-    you: !!host.you,
-    tags: host.tags ?? [],
-    amount: total,
-  }];
 }
 
 function selectedMemberIds(detail: LocalDetail, members: Member[]): number[] {
@@ -501,7 +474,7 @@ export default function ItemDetailPage() {
                 variant="soft"
                 title="儲存變更"
                 onClick={handleSave}
-                disabled={saving || !dirty}
+                disabled={saving || !dirty || details.some((d) => d.invalid)}
                 style={{ marginLeft: "auto" }}
               >
                 <CheckIcon size={18} />
