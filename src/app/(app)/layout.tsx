@@ -10,8 +10,18 @@ import { isEventDetailPage, ROUTES } from "@/lib/routes";
 import { getEvent } from "@/api/event";
 import type { RoleType } from "@/lib/types";
 
-// Screens with their own tour; keys match the useTour key on that page.
-const TOUR_SCREENS = new Set(["event", "rules", "item-new"]);
+// Pages with their own tour; values match the useTour key on that page.
+const TOUR_PAGES: [RegExp, string][] = [
+  [/^\/events\/\d+$/, "event"],
+  [/^\/events\/\d+\/rules$/, "rules"],
+  [/^\/events\/\d+\/items\/new$/, "item-new"],
+  [/^\/events\/\d+\/group$/, "group"],
+];
+
+function tourKeyFor(pathname: string | null): string | null {
+  if (!pathname) return null;
+  return TOUR_PAGES.find(([re]) => re.test(pathname))?.[1] ?? null;
+}
 
 function extractEventId(pathname: string | null): string | null {
   if (!pathname) return null;
@@ -97,7 +107,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (pathname === "/dashboard") return "home";
     if (pathname.includes("/group")) return "group";
     if (pathname.includes("/rules")) return "rules";
-    if (pathname.endsWith("/items/new")) return "item-new";
     if (pathname.includes("/payments") || pathname.includes("/settle")) return "payment";
     if (pathname.match(/^\/events\/\d+$/)) return "event";
     return "";
@@ -140,15 +149,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         break;
       case "tour":
         if (!eventId) break;
-        if (TOUR_SCREENS.has(activeScreen)) {
-          setTourReplay(activeScreen);
+        const tourKey = tourKeyFor(pathname);
+        if (tourKey) {
+          setTourReplay(tourKey);
         } else {
           setTourReplay("event");
           router.push(ROUTES.EVENTS.DETAIL(eventId));
         }
         break;
     }
-  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, activeScreen]);
+  }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, pathname]);
 
   return (
     <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>

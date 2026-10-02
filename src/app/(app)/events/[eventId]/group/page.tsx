@@ -17,6 +17,14 @@ import {
 import { fmtIsoDatetime } from "@/lib/formatters";
 import { createMember, deleteMemberById, getEventMembers, patchMember, roleFromApi, roleToApi } from "@/api/mombers";
 import type { Member, EventEdit } from "@/lib/types";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const GROUP_TOUR: TourStep[] = [
+  { target: '[data-tour="group-info"]', title: "活動資訊", description: "活動名稱、時間與地點，主辦者可以在這裡修改。" },
+  { target: '[data-tour="group-invite"]', title: "邀請成員", description: "分享 QR Code、連結或邀請碼，朋友就能加入這個活動。" },
+  { target: '[data-tour="group-members"]', title: "群組人員", description: "所有成員與他們的身份、人員條件。協辦者也能記帳與編輯分攤規則。" },
+  { target: '[data-tour="member-edit"]', title: "編輯成員", description: "調整成員身份，並替成員加上人員條件（例如「不喝酒」），分攤規則就會依此計算。" },
+];
 
 const ROLE_OPTIONS: Member["role"][] = ["主辦者", "協辦者", "參與者"];
 
@@ -77,6 +85,7 @@ export default function GroupPage() {
   const setCopied = useStore((s) => s.setCopied);
 
   const [evData, setEvData] = useState<EventDetail | null>(null);
+  const [membersLoaded, setMembersLoaded] = useState(false);
 
   useEffect(() => {
     void getEvent(eventId).then(setEvData).catch(() => {});
@@ -91,9 +100,11 @@ export default function GroupPage() {
         guest: m.guest,
         you: m.you,
       })));
-    }).catch(() => {});
+    }).catch(() => {}).finally(() => setMembersLoaded(true));
     void getCondTags(eventId).then(setCondTags).catch(() => {});
   }, [eventId, setCondTags, setMembers]);
+
+  useTour("group", GROUP_TOUR, evData !== null && membersLoaded);
 
   if (!evData) return <div className="page-shell">載入中…</div>;
 
@@ -211,7 +222,7 @@ export default function GroupPage() {
       </div>
 
       {/* Event Info Card */}
-      <div className="card mt-16" style={{ padding: "16px 20px" }}>
+      <div data-tour="group-info" className="card mt-16" style={{ padding: "16px 20px" }}>
         {!evEdit ? (
           <div className="flex items-start gap-12">
             <div className="grow">
@@ -299,7 +310,7 @@ export default function GroupPage() {
       <div className="mt-16 flex wrap items-start gap-20">
         {/* Invite Link */}
         {isHost && (
-          <div style={{ flex: "1 1 300px", minWidth: 0 }} className="flex-col gap-10">
+          <div data-tour="group-invite" style={{ flex: "1 1 300px", minWidth: 0 }} className="flex-col gap-10">
             <div className="section-title">專屬邀請連結</div>
             {isLocked ? (
               <div className="fs12 text2">
@@ -335,7 +346,7 @@ export default function GroupPage() {
 
         {/* Members */}
         <div style={{ flex: "2 1 380px", minWidth: 0 }}>
-          <div className="flex items-center between gap-10">
+          <div data-tour="group-members" className="flex items-center between gap-10">
             <span className="section-title">群組人員</span>
           </div>
 
@@ -365,7 +376,7 @@ export default function GroupPage() {
                                 <TrashIcon size={14} />
                               </IconButton>
                             )}
-                            <IconButton variant="sm-fill" title="編輯人員" onClick={() => setEditMember(i)}>
+                            <IconButton data-tour="member-edit" variant="sm-fill" title="編輯人員" onClick={() => setEditMember(i)}>
                               <EditIcon size={14} />
                             </IconButton>
                           </span>
