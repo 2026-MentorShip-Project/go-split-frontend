@@ -26,6 +26,14 @@ import {
   getCondTags, addCondTag, deleteCondTag, renameCondTag,
   getRules, createRule, updateRuleApi, deleteRuleApi,
 } from "@/api/event";
+import { useTour, type TourStep } from "@/hooks/useTour";
+
+const RULES_TOUR: TourStep[] = [
+  { target: '[data-tour="item-tags"]', title: "項目標籤", description: "替款項分類，例如「酒水」、「住宿」。記帳時幫款項貼上標籤，就能套用對應的分攤規則。" },
+  { target: '[data-tour="cond-tags"]', title: "人員條件", description: "描述成員的特殊狀況，例如「不喝酒」、「小孩」。在群組設定中替成員加上條件。" },
+  { target: '[data-tour="rules"]', title: "條件式分攤規則", description: "針對某個項目標籤，設定符合條件的人不分攤或依比例分攤；沒設定到的人員與項目都採均分。" },
+  { target: '[data-tour="rules-edit"]', title: "開始設定", description: "點這裡進入編輯，新增或修改規則。結帳前規則改動會即時重算所有款項。" },
+];
 
 export default function RulesPage() {
   const params = useParams();
@@ -64,6 +72,7 @@ export default function RulesPage() {
   const [usage, setUsage] = useState<Record<string, number>>({});
   const [archived, setArchived] = useState(false);
   const [settled, setSettled] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   const [previewAmount, setPreviewAmount] = useState("1200");
   const engine = useSplitEngine();
@@ -80,11 +89,14 @@ export default function RulesPage() {
 
   const canEditRules = (role === "host" || role === "co") && !archived && !settled;
 
+  useTour("rules", RULES_TOUR, loaded);
+
   useEffect(() => {
     if (!eventId) return;
     void Promise.all([getItemTags(eventId), getCondTags(eventId), getRules(eventId)])
       .then(([it, ct, rl]) => { setItemTags(it); setCondTags(ct); setRules(rl); })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
     void getEvent(eventId)
       .then((ev) => {
         setSettled(ev.settled);
@@ -345,7 +357,7 @@ export default function RulesPage() {
       )}
 
       {/* Item Tags Section */}
-      <div className="mt-20 flex items-center between gap-10">
+      <div data-tour="item-tags" className="mt-20 flex items-center between gap-10">
         <IconButton variant="sm" style={{ border: "none" }} title="收合／展開" onClick={() => toggleSection("item")}>
           {itemOpen ? <ChevDownIcon size={16} /> : <ChevRightIcon size={16} />}
         </IconButton>
@@ -446,7 +458,7 @@ export default function RulesPage() {
       )}
 
       {/* Cond Tags Section */}
-      <div className="mt-24 flex items-center between gap-10">
+      <div data-tour="cond-tags" className="mt-24 flex items-center between gap-10">
         <IconButton variant="sm" style={{ border: "none" }} title="收合／展開" onClick={() => toggleSection("cond")}>
           {condOpen ? <ChevDownIcon size={16} /> : <ChevRightIcon size={16} />}
         </IconButton>
@@ -547,7 +559,7 @@ export default function RulesPage() {
       )}
 
       {/* Rules Section */}
-      <div className="mt-24 flex items-center between gap-10">
+      <div data-tour="rules" className="mt-24 flex items-center between gap-10">
         <IconButton variant="sm" style={{ border: "none" }} title="收合／展開" onClick={() => toggleSection("rule")}>
           {ruleOpen ? <ChevDownIcon size={16} /> : <ChevRightIcon size={16} />}
         </IconButton>
@@ -569,7 +581,7 @@ export default function RulesPage() {
           )}
           {canEditRules && (
             ruleViewOn ? (
-              <IconButton variant="sm" title="編輯" onClick={() => toggleEdit("rule")}>
+              <IconButton data-tour="rules-edit" variant="sm" title="編輯" onClick={() => toggleEdit("rule")}>
                 <EditIcon size={16} />
               </IconButton>
             ) : (

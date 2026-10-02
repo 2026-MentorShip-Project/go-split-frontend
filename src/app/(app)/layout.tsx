@@ -10,6 +10,9 @@ import { isEventDetailPage, ROUTES } from "@/lib/routes";
 import { getEvent } from "@/api/event";
 import type { RoleType } from "@/lib/types";
 
+// Screens with their own tour; keys match the useTour key on that page.
+const TOUR_SCREENS = new Set(["event", "rules"]);
+
 function extractEventId(pathname: string | null): string | null {
   if (!pathname) return null;
   const match = pathname.match(/^\/events\/(\d+)/);
@@ -136,8 +139,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         break;
       case "tour":
         if (!eventId) break;
-        setTourReplay("event");
-        if (activeScreen !== "event") router.push(ROUTES.EVENTS.DETAIL(eventId));
+        if (TOUR_SCREENS.has(activeScreen)) {
+          setTourReplay(activeScreen);
+        } else {
+          setTourReplay("event");
+          router.push(ROUTES.EVENTS.DETAIL(eventId));
+        }
         break;
     }
   }, [closeMenu, router, eventId, isSettled, setRole, setTourReplay, activeScreen]);
