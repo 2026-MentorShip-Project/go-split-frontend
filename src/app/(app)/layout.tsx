@@ -37,10 +37,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hasGuestSession = typeof window !== "undefined" && Boolean(localStorage.getItem("guest_session"));
   const isGuest = guest || hasGuestSession;
   const eventId = useMemo(() => extractEventId(pathname), [pathname]);
-  // Track which eventId the archived flag belongs to, so we never reset state
+  // Track which eventId archived/settled belong to, so we never reset state
   // synchronously in an effect (and avoid stale values while switching events).
-  const [archivedMeta, setArchivedMeta] = useState<{ eventId: string; archived: boolean } | null>(null);
-  const isArchived = archivedMeta?.eventId === eventId && archivedMeta.archived;
+  const [eventMeta, setEventMeta] = useState<{
+    eventId: string;
+    archived: boolean;
+    settled: boolean;
+  } | null>(null);
+  const isArchived = eventMeta?.eventId === eventId && eventMeta.archived;
+  const isSettled = eventMeta?.eventId === eventId && eventMeta.settled;
 
   useEffect(() => {
     if (!isGuest) return;
@@ -74,21 +79,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .then((ev) => {
         if (cancelled) return;
         setRole(ev.my_role as RoleType);
-        setArchivedMeta({ eventId, archived: ev.archived });
+        setEventMeta({ eventId, archived: ev.archived, settled: ev.settled });
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
     };
-  }, [eventId, setRole]);
+  }, [eventId, pathname, setRole]);
 
   const activeScreen = useMemo(() => {
     if (!pathname) return "";
     if (pathname === "/dashboard") return "home";
     if (pathname.includes("/group")) return "group";
     if (pathname.includes("/rules")) return "rules";
-    if (pathname.includes("/payments")) return "payment";
+    if (pathname.includes("/payments") || pathname.includes("/settle")) return "payment";
     if (pathname.match(/^\/events\/\d+$/)) return "event";
     return "";
   }, [pathname]);
@@ -109,10 +114,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (eventId) router.push(ROUTES.EVENTS.RULES(eventId));
         break;
       case "payment":
-        if (eventId) router.push(ROUTES.EVENTS.PAYMENTS(eventId));
+        if (!eventId) break;
+        void getEvent(Number(eventId))
+          .then((ev) => {
+            setEventMeta({ eventId, archived: ev.archived, settled: ev.settled });
+            setRole(ev.my_role as RoleType);
+            router.push(
+              ev.settled
+                ? ROUTES.EVENTS.PAYMENTS(eventId)
+                : ROUTES.EVENTS.SETTLE(eventId),
+            );
+          })
+          .catch(() => {
+            router.push(
+              isSettled
+                ? ROUTES.EVENTS.PAYMENTS(eventId)
+                : ROUTES.EVENTS.SETTLE(eventId),
+            );
+          });
         break;
     }
-  }, [closeMenu, router, eventId]);
+  }, [closeMenu, router, eventId, isSettled, setRole]);
 
   return (
     <div id="app-root" style={{ height: "100dvh", display: "flex", flexDirection: "column" }}>

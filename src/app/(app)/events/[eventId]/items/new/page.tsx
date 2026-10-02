@@ -8,7 +8,7 @@ import IconButton from "@/components/ui/IconButton";
 import Chip from "@/components/ui/Chip";
 import { BackIcon, CheckIcon, PlusIcon, EditIcon, TrashIcon, XIcon, StarIcon, ChevDownIcon } from "@/components/icons";
 import { money, num } from "@/lib/formatters";
-import { getEvent, createItem, getRules } from "@/api/event";
+import { getEvent, createItem, getRules, getItemTags } from "@/api/event";
 import { roleFromApi } from "@/api/mombers";
 import { detailShares } from "@/lib/calculations";
 import { useSplitEngine } from "@/hooks/useSplitEngine";
@@ -69,6 +69,7 @@ export default function AddItemPage() {
   const draftEdit = useStore((s) => s.draftEdit);
   const setDraftEdit = useStore((s) => s.setDraftEdit);
   const itemTags = useStore((s) => s.itemTags);
+  const setItemTags = useStore((s) => s.setItemTags);
   const tagPick = useStore((s) => s.tagPick);
   const setTagPick = useStore((s) => s.setTagPick);
 
@@ -79,8 +80,8 @@ export default function AddItemPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    Promise.all([getEvent(eventId), getRules(eventId)])
-      .then(([ev, rl]) => {
+    Promise.all([getEvent(eventId), getRules(eventId), getItemTags(eventId)])
+      .then(([ev, rl, tags]) => {
         const me = ev.members.find((m) => m.you);
         if (me) setMyMemberId(me.id);
         setMembers((ev.members ?? []).map((m) => ({
@@ -94,9 +95,10 @@ export default function AddItemPage() {
           you: m.you,
         })));
         setRules(rl);
+        setItemTags(tags);
       })
       .catch(console.error);
-  }, [eventId]);
+  }, [eventId, setItemTags]);
 
   const draftTotal = draft.details.reduce(
     (a, d) => a + (typeof d.amount === "number" ? d.amount : num(String(d.amount))),
